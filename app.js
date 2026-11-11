@@ -57,7 +57,7 @@ function startTournament(players) {
   saveState();
   render();
   if (isBrowser()) {
-    api("/api/tournament", {
+    api("api/tournament", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ players }),
@@ -70,7 +70,7 @@ function startTournament(players) {
 async function syncFromServer() {
   if (!isBrowser()) return;
   try {
-    const incoming = await api("/api/state");
+    const incoming = await api("api/state");
     if (incoming && JSON.stringify(incoming) !== JSON.stringify(state)) {
       state = incoming;
       saveState();
@@ -221,7 +221,7 @@ function buildMatchCard(match) {
     saveState();
     render();
     if (isBrowser()) {
-      api(`/api/matches/${match.id}/score`, {
+      api(`api/matches/${match.id}/score`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(score),
@@ -265,7 +265,7 @@ resetBtn.addEventListener("click", () => {
   setupForm.reset();
   render();
   if (isBrowser()) {
-    api("/api/reset", { method: "POST" }).catch(() => {});
+    api("api/reset", { method: "POST" }).catch(() => {});
   }
 });
 

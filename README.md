@@ -19,7 +19,21 @@ ordered by points, then matches won, then game difference.
 
 ## Run it
 
-### Shared play session (recommended)
+### Always-on page via GitHub Pages (like the countdown repo)
+
+Enable GitHub Pages for this repository (Settings → Pages → "Deploy from a
+branch" → `main` → `/ (root)`). The app is then constantly running at:
+
+```
+https://hakvaki.github.io/Padlister/
+```
+
+Note: on the free plan GitHub Pages only serves **public** repositories, so
+make this repo public first (same as the `countdown` repo). The page is fully
+static — each browser keeps its own tournament in `localStorage`, and any
+`/api/*` calls fail silently without a backend.
+
+### Shared play session (multiple devices, one live tournament)
 
 Start the zero-dependency Node server:
 
@@ -35,7 +49,10 @@ and `PORT` to change the bind address, e.g. `PORT=3000 node server.js`.
 
 Tournament state is persisted on the server in `data/tournament.json`, so
 restarting the server keeps the session. Each browser also keeps a
-`localStorage` copy as an offline fallback when the server is unreachable.
+`localStorage` copy as an offline fallback when the server is unreachable. On
+the static GitHub Pages build there is no backend, so every device plays its
+own local tournament — use the Node server when several people must share one
+live scoreboard.
 
 ### Single browser, no server
 
