@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Padel Americano — 4 Players</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="court-header">
+    <h1>Padel Americano</h1>
+    <p class="subtitle">4 players · 3 rounds · everyone partners everyone</p>
+  </header>
+
+  <main>
+    <section id="setup-panel" class="panel hidden">
+      <h2>Set up your game</h2>
+      <p class="hint">Enter the four player names. The three classic Americano pairings are generated automatically.</p>
+      <form id="setup-form">
+        <div class="name-inputs">
+          <input type="text" name="player0" maxlength="20" placeholder="Player 1" required />
+          <input type="text" name="player1" maxlength="20" placeholder="Player 2" required />
+          <input type="text" name="player2" maxlength="20" placeholder="Player 3" required />
+          <input type="text" name="player3" maxlength="20" placeholder="Player 4" required />
+        </div>
+        <p id="setup-error" class="error hidden"></p>
+        <button type="submit" class="btn primary">Start tournament</button>
+      </form>
+    </section>
+
+    <section id="tournament-panel" class="hidden">
+      <div class="players-bar" id="players-bar"></div>
+
+      <div class="columns">
+        <section class="panel">
+          <h2>Standings</h2>
+          <table class="standings" id="standings-table">
+            <thead>
+              <tr>
+                <th>#</th><th>Player</th><th>MP</th><th>W</th><th>Pts</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <p class="hint">Points = games won across all matches. Ties broken by matches won, then game difference.</p>
+          <p id="tournament-status" class="status"></p>
+        </section>
+
+        <section class="panel">
+          <h2>Matches</h2>
+          <div id="matches-list" class="matches-list"></div>
+        </section>
+      </div>
+
+      <button id="reset-btn" class="btn danger">New tournament</button>
+    </section>
+  </main>
+
+  <script src="logic.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,271 @@
+:root {
+  --court-green: #1e7a4f;
+  --court-dark: #14532d;
+  --line: #e8f5ee;
+  --bg: #0f2e1f;
+  --panel: #ffffff;
+  --text: #14231b;
+  --muted: #5b6b62;
+  --accent: #facc15;
+  --danger: #dc2626;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: linear-gradient(160deg, var(--bg), #0a2417 60%, var(--court-dark));
+  color: var(--text);
+  min-height: 100vh;
+}
+
+.court-header {
+  text-align: center;
+  padding: 2rem 1rem 1rem;
+  color: var(--line);
+}
+
+.court-header h1 {
+  margin: 0;
+  font-size: 2.2rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.subtitle {
+  margin: 0.4rem 0 0;
+  color: #a7d7bd;
+}
+
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1rem;
+  padding-bottom: 3rem;
+}
+
+.panel {
+  background: var(--panel);
+  border-radius: 14px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.panel h2 {
+  margin-top: 0;
+  color: var(--court-dark);
+  border-bottom: 3px solid var(--court-green);
+  display: inline-block;
+  padding-bottom: 0.2rem;
+}
+
+.hidden {
+  display: none;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.error {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.status {
+  font-weight: 600;
+  color: var(--court-dark);
+}
+
+.name-inputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+input[type="text"],
+input[type="number"] {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 2px solid #cfe3d8;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--court-green);
+}
+
+.btn {
+  border: none;
+  border-radius: 8px;
+  padding: 0.65rem 1.4rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn.primary {
+  background: var(--court-green);
+  color: #fff;
+}
+
+.btn.primary:hover {
+  background: var(--court-dark);
+}
+
+.btn.danger {
+  background: transparent;
+  color: #fecaca;
+  border: 2px solid #f87171;
+  display: block;
+  margin: 0 auto;
+}
+
+.btn.danger:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+.btn.small {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.9rem;
+  background: var(--court-green);
+  color: #fff;
+}
+
+.players-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.player-chip {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--line);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 760px) {
+  .columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.standings {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.standings th,
+.standings td {
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid #e2efe8;
+}
+
+.standings th {
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.standings tr.first td {
+  font-weight: 700;
+  color: var(--court-dark);
+}
+
+.standings tr.first td:first-child::after {
+  content: " ★";
+  color: var(--accent);
+}
+
+.matches-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.match-card {
+  border: 2px solid #d7e9df;
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+}
+
+.match-card.played {
+  border-color: var(--court-green);
+  background: #f2faf5;
+}
+
+.match-title {
+  font-weight: 700;
+  color: var(--court-dark);
+  margin-bottom: 0.6rem;
+}
+
+.teams {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.team {
+  background: #eef7f1;
+  border-radius: 8px;
+  padding: 0.55rem 0.7rem;
+  font-weight: 600;
+}
+
+.team.winner {
+  background: var(--court-green);
+  color: #fff;
+}
+
+.vs {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.score-row {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin-top: 0.7rem;
+}
+
+.score-row input {
+  width: 70px;
+  text-align: center;
+}
+
+.score-row .score-error {
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
+.score-display {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--court-dark);
+  margin-top: 0.5rem;
+}
