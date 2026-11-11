@@ -26,6 +26,7 @@ const qrImg = document.getElementById("qr-img");
 const joinCode = document.getElementById("join-code");
 const joinUrl = document.getElementById("join-url");
 const hostContinueBtn = document.getElementById("host-continue-btn");
+const inviteBtn = document.getElementById("invite-btn");
 const gatePanel = document.getElementById("gate-panel");
 const gateForm = document.getElementById("gate-form");
 const gateCodeInput = document.getElementById("gate-code");
@@ -37,6 +38,22 @@ let pollTimer = null;
 let view = "game";
 let unlocked = false;
 let isHost = false;
+
+function setView(next) {
+  view = next === "host" && !isHost ? "game" : next;
+  if (isBrowser() && typeof location !== "undefined" && typeof history !== "undefined") {
+    const hash = view === "host" ? "#invite" : view === "scoreboard" ? "#scoreboard" : "#game";
+    history.replaceState(null, "", hash);
+  }
+}
+
+function applyHash() {
+  if (!isBrowser() || typeof location === "undefined") return;
+  const hash = location.hash.replace("#", "");
+  if (hash === "scoreboard") setView("scoreboard");
+  else if (hash === "invite") setView("host");
+  else if (hash === "game") setView("game");
+}
 
 function hostHashConfigured() {
   return typeof window !== "undefined" && Boolean(window.PADEL_HOST_CODE_HASH);
@@ -165,7 +182,7 @@ function startTournament(players, mode, hostCodeHash) {
   const code = generateJoinCode();
   localStorage.setItem(UNLOCK_KEY, code);
   unlocked = true;
-  view = "host";
+  setView("host");
   state = {
     players,
     mode,
@@ -254,7 +271,7 @@ function render() {
   const hasState = state !== null;
   setupPanel.classList.toggle("hidden", hasState);
   gatePanel.classList.toggle("hidden", !(hasState && !unlocked));
-  hostPanel.classList.toggle("hidden", !(hasState && unlocked && view === "host"));
+  hostPanel.classList.toggle("hidden", !(hasState && isHost && view === "host"));
   tournamentPanel.classList.toggle("hidden", !(hasState && unlocked && view === "game"));
   scoreboardPanel.classList.toggle("hidden", !(hasState && view === "scoreboard"));
   if (!hasState) return;
@@ -264,6 +281,7 @@ function render() {
   addRoundBtn.classList.toggle("hidden", !endlessActive);
   finishBtn.classList.toggle("hidden", state.mode !== "endless" || state.finished);
   resetBtn.classList.toggle("hidden", !isHost);
+  inviteBtn.classList.toggle("hidden", !isHost);
 
   playersBar.innerHTML = "";
   for (const name of state.players) {
@@ -474,17 +492,22 @@ setupForm.addEventListener("submit", async (event) => {
 });
 
 scoreboardBtn.addEventListener("click", () => {
-  view = "scoreboard";
+  setView("scoreboard");
+  render();
+});
+
+inviteBtn.addEventListener("click", () => {
+  setView("host");
   render();
 });
 
 hostContinueBtn.addEventListener("click", () => {
-  view = "game";
+  setView("game");
   render();
 });
 
 gateScoreboardBtn.addEventListener("click", () => {
-  view = "scoreboard";
+  setView("scoreboard");
   render();
 });
 
@@ -494,7 +517,7 @@ gateForm.addEventListener("submit", async (event) => {
   if (state && state.codeHash && (await hashJoinCode(code)) === state.codeHash) {
     localStorage.setItem(UNLOCK_KEY, code);
     unlocked = true;
-    view = "game";
+    setView("game");
     gateError.classList.add("hidden");
     render();
   } else {
@@ -504,7 +527,7 @@ gateForm.addEventListener("submit", async (event) => {
 });
 
 backBtn.addEventListener("click", () => {
-  view = "game";
+  setView("game");
   render();
 });
 
@@ -536,7 +559,7 @@ resetBtn.addEventListener("click", () => {
   localStorage.removeItem(UNLOCK_KEY);
   state = null;
   unlocked = false;
-  view = "game";
+  setView("game");
   setupForm.reset();
   render();
   if (isBrowser()) {
@@ -550,9 +573,19 @@ if (isBrowser() && typeof location !== "undefined") {
 }
 
 state = loadState();
+applyHash();
 render();
-refreshGate().then(render);
+refreshGate().then(() => {
+  applyHash();
+  render();
+});
 if (isBrowser()) {
+  if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+    window.addEventListener("hashchange", () => {
+      applyHash();
+      render();
+    });
+  }
   syncShared();
   startPolling();
 }

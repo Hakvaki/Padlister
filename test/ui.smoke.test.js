@@ -73,7 +73,7 @@ for (const id of [
   "players-bar", "standings-table", "matches-list", "tournament-status", "reset-btn",
   "scoreboard-btn", "add-round-btn", "finish-btn", "scoreboard-panel",
   "scoreboard-round", "scoreboard-table", "scoreboard-matches", "scoreboard-status", "back-btn",
-  "host-panel", "qr-img", "join-code", "join-url", "host-continue-btn",
+  "host-panel", "qr-img", "join-code", "join-url", "host-continue-btn", "invite-btn",
   "gate-panel", "gate-form", "gate-code", "gate-error", "gate-scoreboard-btn",
 ]) {
   elements[id] = new FakeElement("div");
@@ -194,6 +194,13 @@ assert.equal(storage.has("padelAmericano4.v1"), false, "storage cleared on reset
   await new Promise((r) => setTimeout(r, 20));
   assert.ok(!elements["tournament-panel"].classList.contains("hidden"), "correct code unlocks editing");
   assert.ok(elements["gate-panel"].classList.contains("hidden"), "gate hidden after unlock");
+
+  assert.ok(!elements["invite-btn"].classList.contains("hidden"), "invite button visible to host");
+  elements["invite-btn"].click();
+  assert.ok(!elements["host-panel"].classList.contains("hidden"), "invite button returns to QR screen");
+  assert.ok(elements["tournament-panel"].classList.contains("hidden"), "game hidden on QR screen");
+  elements["host-continue-btn"].click();
+  assert.ok(!elements["tournament-panel"].classList.contains("hidden"), "continue returns to game");
 
   console.log("All UI smoke tests passed.");
 })().catch((err) => {

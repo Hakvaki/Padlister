@@ -48,6 +48,13 @@ confirmation ("End it and start a new one?") before anything is cleared. The
 local `server.js` enforces the same check when `PADEL_HOST_CODE_HASH` is set in
 its environment. Leave the config empty to disable the host check.
 
+## Navigating between views
+
+Views are also reachable by URL hash, so they can be shared or bookmarked:
+`#/invite` shows the host's QR code screen again (host only — the "Invite
+(QR)" button in the toolbar does the same), `#/scoreboard` opens the live
+scoreboard directly, `#/game` returns to score entry.
+
 ## Run it
 
 ### Always-on page via GitHub Pages (like the countdown repo)
