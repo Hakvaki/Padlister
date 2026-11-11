@@ -4,3 +4,9 @@
 // The database URL is not a secret — access is controlled by the database
 // rules in your Firebase project.
 window.PADEL_DB_URL = "https://padlister-f87f6-default-rtdb.europe-west1.firebasedatabase.app";
+
+// Optional host restriction: only devices that know the host code can start
+// or end a tournament. Put the SHA-256 hex of your secret code here, e.g. run:
+//   node -e "console.log(require('crypto').createHash('sha256').update('YOUR-CODE').digest('hex'))"
+// Leave empty to disable the host check.
+window.PADEL_HOST_CODE_HASH = "";
