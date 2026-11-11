@@ -75,6 +75,7 @@ for (const id of [
   "scoreboard-round", "scoreboard-table", "scoreboard-matches", "scoreboard-status", "back-btn",
   "host-panel", "qr-img", "join-code", "join-url", "host-continue-btn", "invite-btn",
   "gate-panel", "gate-form", "gate-code", "gate-error", "gate-scoreboard-btn",
+  "history-btn", "history-panel", "history-ranking", "history-list", "history-back-btn",
 ]) {
   elements[id] = new FakeElement("div");
 }

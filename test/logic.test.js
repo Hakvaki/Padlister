@@ -8,6 +8,10 @@ const {
   isTournamentComplete,
   generateJoinCode,
   hashJoinCode,
+  sha256Hex,
+  buildResult,
+  sealResult,
+  computeSeasonRanking,
   PAIRINGS,
 } = require("../logic.js");
 const nodeCrypto = require("node:crypto");
@@ -159,8 +163,41 @@ async function testJoinCodeHash() {
 testScheduleShape();
 testCreateMatchCyclesPairings();
 testModeValidation();
+async function testResultSealingAndRanking() {
+  assert.equal(await sha256Hex("abc"), nodeCrypto.createHash("sha256").update("abc").digest("hex"));
+
+  const state = {
+    players: ["Ana", "Ben", "Cleo", "Dan"],
+    mode: "classic",
+    matches: generateSchedule(4),
+  };
+  state.matches[0].score = { a: 4, b: 2 };
+  state.matches[1].score = { a: 3, b: 4 };
+  state.matches[2].score = { a: 6, b: 1 };
+
+  const result = buildResult(state, null);
+  assert.equal(result.winner, "Ana");
+  assert.equal(result.prevHash, null);
+  assert.equal(result.standings.length, 4);
+
+  const sealed = await sealResult(result);
+  assert.match(sealed.hash, /^[0-9a-f]{64}$/);
+  assert.equal(sealed.hash, await sha256Hex(JSON.stringify({ ...result, prevHash: null, hash: null })));
+
+  const r2 = await sealResult(buildResult(state, sealed.hash));
+  assert.equal(r2.prevHash, sealed.hash);
+
+  const ranking = computeSeasonRanking([sealed, r2]);
+  assert.equal(ranking[0].name, "Ana");
+  assert.equal(ranking[0].tournaments, 2);
+  assert.equal(ranking[0].wins, 2);
+  assert.equal(ranking[0].points, 26);
+}
+
 testJoinCodeGeneration();
-testJoinCodeHash().then(() => console.log("All logic tests passed."));
+testJoinCodeHash()
+  .then(testResultSealingAndRanking)
+  .then(() => console.log("All logic tests passed."));
 testScheduleRejectsWrongPlayerCount();
 testEachPlayerPartnersWithEveryoneOnce();
 testScoreValidation();
