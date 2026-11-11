@@ -355,3 +355,51 @@ input:focus {
   font-weight: 800;
   margin: 0 0.4rem;
 }
+
+.host-card,
+.gate-card {
+  max-width: 420px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.qr {
+  display: block;
+  margin: 0.75rem auto;
+  border-radius: 10px;
+  background: #fff;
+  padding: 8px;
+}
+
+.join-code {
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: 0.35em;
+  margin: 0.4rem 0;
+  color: var(--court-dark);
+  font-family: ui-monospace, monospace;
+}
+
+.join-url {
+  word-break: break-all;
+  font-size: 0.8rem;
+}
+
+.gate-card input[type="text"] {
+  text-align: center;
+  font-size: 1.4rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  font-family: ui-monospace, monospace;
+  margin-bottom: 0.6rem;
+}
+
+.gate-card form {
+  margin-bottom: 0.8rem;
+}
+
+.gate-card .btn:not(.primary) {
+  background: #eef7f1;
+  color: var(--court-dark);
+  border: 2px solid var(--court-green);
+}

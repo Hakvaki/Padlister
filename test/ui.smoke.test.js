@@ -73,6 +73,8 @@ for (const id of [
   "players-bar", "standings-table", "matches-list", "tournament-status", "reset-btn",
   "scoreboard-btn", "add-round-btn", "finish-btn", "scoreboard-panel",
   "scoreboard-round", "scoreboard-table", "scoreboard-matches", "scoreboard-status", "back-btn",
+  "host-panel", "qr-img", "join-code", "join-url", "host-continue-btn",
+  "gate-panel", "gate-form", "gate-code", "gate-error", "gate-scoreboard-btn",
 ]) {
   elements[id] = new FakeElement("div");
 }
@@ -122,6 +124,9 @@ assert.ok(elements["setup-panel"].classList.contains("hidden") === false, "setup
 assert.ok(elements["tournament-panel"].classList.contains("hidden"), "tournament hidden initially");
 
 submitNames(["Ana", "Ben", "Cleo", "Dan"]);
+assert.ok(!elements["host-panel"].classList.contains("hidden"), "host invite panel shown after start");
+assert.equal(elements["join-code"].textContent.length, 6, "6-character join code shown to host");
+elements["host-continue-btn"].click();
 assert.ok(elements["setup-panel"].classList.contains("hidden"), "setup hidden after start");
 assert.ok(!elements["tournament-panel"].classList.contains("hidden"), "tournament visible after start");
 assert.equal(elements["matches-list"].children.length, 3, "three rounds rendered");
@@ -162,4 +167,36 @@ elements["reset-btn"].click();
 assert.ok(!elements["setup-panel"].classList.contains("hidden"), "reset returns to setup");
 assert.equal(storage.has("padelAmericano4.v1"), false, "storage cleared on reset");
 
-console.log("All UI smoke tests passed.");
+(async () => {
+  submitNames(["Ana", "Ben", "Cleo", "Dan"]);
+  elements["host-continue-btn"].click();
+  await new Promise((r) => setTimeout(r, 50));
+  const code = storage.get("padelAmericano4.unlock");
+  assert.ok(code, "host device stores the join code");
+
+  storage.delete("padelAmericano4.unlock");
+  await refreshGate();
+  render();
+  assert.ok(!elements["gate-panel"].classList.contains("hidden"), "gate shown when code is missing");
+  assert.ok(elements["tournament-panel"].classList.contains("hidden"), "editing hidden while locked");
+  elements["gate-scoreboard-btn"].click();
+  assert.ok(!elements["scoreboard-panel"].classList.contains("hidden"), "scoreboard viewable while locked");
+  elements["back-btn"].click();
+  assert.ok(!elements["gate-panel"].classList.contains("hidden"), "back from scoreboard returns to gate while locked");
+
+  elements["gate-code"].value = "WRONG1";
+  elements["gate-form"].dispatch("submit", { preventDefault() {} });
+  await new Promise((r) => setTimeout(r, 20));
+  assert.ok(!elements["gate-error"].classList.contains("hidden"), "wrong code rejected");
+
+  elements["gate-code"].value = code.toLowerCase();
+  elements["gate-form"].dispatch("submit", { preventDefault() {} });
+  await new Promise((r) => setTimeout(r, 20));
+  assert.ok(!elements["tournament-panel"].classList.contains("hidden"), "correct code unlocks editing");
+  assert.ok(elements["gate-panel"].classList.contains("hidden"), "gate hidden after unlock");
+
+  console.log("All UI smoke tests passed.");
+})().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

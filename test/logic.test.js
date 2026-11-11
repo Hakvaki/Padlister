@@ -6,8 +6,11 @@ const {
   isValidScore,
   computeStandings,
   isTournamentComplete,
+  generateJoinCode,
+  hashJoinCode,
   PAIRINGS,
 } = require("../logic.js");
+const nodeCrypto = require("node:crypto");
 
 const PLAYERS = ["Ana", "Ben", "Cleo", "Dan"];
 
@@ -139,9 +142,25 @@ function testModeValidation() {
   assert.ok(!isValidMode("tournament"));
 }
 
+function testJoinCodeGeneration() {
+  const code = generateJoinCode();
+  assert.equal(code.length, 6);
+  assert.match(code, /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/);
+  assert.notEqual(generateJoinCode(), generateJoinCode());
+}
+
+async function testJoinCodeHash() {
+  const hash = await hashJoinCode("abc123");
+  assert.equal(hash, nodeCrypto.createHash("sha256").update("ABC123").digest("hex"));
+  assert.equal(await hashJoinCode(" ABC123 "), hash, "hash normalizes case and whitespace");
+  assert.notEqual(await hashJoinCode("ABC124"), hash);
+}
+
 testScheduleShape();
 testCreateMatchCyclesPairings();
 testModeValidation();
+testJoinCodeGeneration();
+testJoinCodeHash().then(() => console.log("All logic tests passed."));
 testScheduleRejectsWrongPlayerCount();
 testEachPlayerPartnersWithEveryoneOnce();
 testScoreValidation();
@@ -150,4 +169,4 @@ testStandingsTieBreaksDeterministically();
 testStandingsIgnoreUnplayedMatches();
 testTournamentComplete();
 
-console.log("All logic tests passed.");
+
