@@ -4,6 +4,19 @@ const PAIRINGS = [
   [[0, 3], [1, 2]],
 ];
 
+function createMatch(roundIndex) {
+  if (!Number.isInteger(roundIndex) || roundIndex < 0) {
+    throw new Error("roundIndex must be an integer >= 0");
+  }
+  const teams = PAIRINGS[roundIndex % PAIRINGS.length];
+  return {
+    id: roundIndex + 1,
+    round: roundIndex + 1,
+    teams: teams.map((team) => [...team]),
+    score: null,
+  };
+}
+
 function generateSchedule(playerCount = 4) {
   if (!Number.isInteger(playerCount) || playerCount < 2) {
     throw new Error("playerCount must be an integer >= 2");
@@ -11,12 +24,11 @@ function generateSchedule(playerCount = 4) {
   if (playerCount !== 4) {
     throw new Error("Classic Americano is only supported for 4 players");
   }
-  return PAIRINGS.map((teams, index) => ({
-    id: index + 1,
-    round: index + 1,
-    teams: teams.map((team) => [...team]),
-    score: null,
-  }));
+  return [0, 1, 2].map(createMatch);
+}
+
+function isValidMode(mode) {
+  return mode === "classic" || mode === "endless";
 }
 
 function isValidScore(score) {
@@ -75,5 +87,5 @@ function isTournamentComplete(matches) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { generateSchedule, isValidScore, computeStandings, isTournamentComplete, PAIRINGS };
+  module.exports = { generateSchedule, createMatch, isValidMode, isValidScore, computeStandings, isTournamentComplete, PAIRINGS };
 }

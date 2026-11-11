@@ -10,9 +10,19 @@ const standingsTable = document.getElementById("standings-table");
 const matchesList = document.getElementById("matches-list");
 const tournamentStatus = document.getElementById("tournament-status");
 const resetBtn = document.getElementById("reset-btn");
+const scoreboardBtn = document.getElementById("scoreboard-btn");
+const addRoundBtn = document.getElementById("add-round-btn");
+const finishBtn = document.getElementById("finish-btn");
+const scoreboardPanel = document.getElementById("scoreboard-panel");
+const scoreboardRound = document.getElementById("scoreboard-round");
+const scoreboardTable = document.getElementById("scoreboard-table");
+const scoreboardMatches = document.getElementById("scoreboard-matches");
+const scoreboardStatus = document.getElementById("scoreboard-status");
+const backBtn = document.getElementById("back-btn");
 
 let state = null;
 let pollTimer = null;
+let view = "game";
 
 function isBrowser() {
   return typeof window !== "undefined" && typeof fetch === "function";
@@ -36,8 +46,7 @@ function isValidState(parsed) {
     typeof parsed === "object" &&
     Array.isArray(parsed.players) &&
     parsed.players.length === 4 &&
-    Array.isArray(parsed.matches) &&
-    parsed.matches.length === 3
+    Array.isArray(parsed.matches)
   );
 }
 
@@ -45,6 +54,8 @@ function normalizeState(parsed) {
   if (!isValidState(parsed)) return null;
   return {
     players: parsed.players,
+    mode: parsed.mode === "endless" ? "endless" : "classic",
+    finished: Boolean(parsed.finished),
     matches: parsed.matches.map((m) => ({ ...m, score: m.score || null })),
   };
 }
@@ -79,8 +90,14 @@ async function publish(action, payload) {
     return api("api/tournament", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ players: payload }),
+      body: JSON.stringify({ players: payload.players, mode: payload.mode }),
     });
+  }
+  if (action === "round") {
+    return api("api/round", { method: "POST" });
+  }
+  if (action === "finish") {
+    return api("api/finish", { method: "POST" });
   }
   if (action === "score") {
     return api(`api/matches/${payload.id}/score`, {
@@ -125,12 +142,17 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
-function startTournament(players) {
-  state = { players, matches: generateSchedule(4) };
+function startTournament(players, mode) {
+  state = {
+    players,
+    mode,
+    finished: false,
+    matches: mode === "endless" ? [createMatch(0)] : generateSchedule(4),
+  };
   saveState();
   render();
   if (isBrowser()) {
-    publish("tournament", players).catch((err) => {
+    publish("tournament", { players, mode }).catch((err) => {
       if (err && err.status === 409) syncShared();
     });
   }
@@ -180,8 +202,13 @@ function teamNames(team) {
 function render() {
   const hasState = state !== null;
   setupPanel.classList.toggle("hidden", hasState);
-  tournamentPanel.classList.toggle("hidden", !hasState);
+  tournamentPanel.classList.toggle("hidden", !hasState || view !== "game");
+  scoreboardPanel.classList.toggle("hidden", !hasState || view !== "scoreboard");
   if (!hasState) return;
+
+  const endlessActive = state.mode === "endless" && !state.finished;
+  addRoundBtn.classList.toggle("hidden", !endlessActive);
+  finishBtn.classList.toggle("hidden", state.mode !== "endless" || state.finished);
 
   playersBar.innerHTML = "";
   for (const name of state.players) {
@@ -193,6 +220,49 @@ function render() {
 
   renderStandings();
   renderMatches();
+  renderScoreboard();
+}
+
+function statusText(standings) {
+  const played = state.matches.filter((m) => isValidScore(m.score)).length;
+  if (state.mode === "endless") {
+    if (state.finished) return `Game over — ${standings[0].name} wins!`;
+    return `Round ${state.matches.length} · ${played} of ${state.matches.length} matches played`;
+  }
+  return isTournamentComplete(state.matches)
+    ? `Tournament complete — ${standings[0].name} wins!`
+    : `${played} of 3 matches played`;
+}
+
+function renderScoreboard() {
+  const standings = computeStandings(state.players, state.matches);
+  scoreboardRound.textContent = state.mode === "endless"
+    ? (state.finished ? "Game over" : `Round ${state.matches.length}`)
+    : `Classic · ${state.matches.filter((m) => isValidScore(m.score)).length} of 3 played`;
+
+  const tbody = scoreboardTable.querySelector("tbody");
+  tbody.innerHTML = "";
+  standings.forEach((s, rank) => {
+    const tr = document.createElement("tr");
+    if (rank === 0) tr.className = "first";
+    for (const value of [rank + 1, s.name, s.won, s.points]) {
+      const td = document.createElement("td");
+      td.textContent = value;
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  });
+
+  scoreboardMatches.innerHTML = "";
+  for (const match of state.matches) {
+    if (!isValidScore(match.score)) continue;
+    const div = document.createElement("div");
+    div.className = "scoreboard-match";
+    div.textContent = `R${match.round}: ${teamNames(match.teams[0])} ${match.score.a} – ${match.score.b} ${teamNames(match.teams[1])}`;
+    scoreboardMatches.appendChild(div);
+  }
+
+  scoreboardStatus.textContent = statusText(standings);
 }
 
 function renderStandings() {
@@ -210,9 +280,7 @@ function renderStandings() {
     tbody.appendChild(tr);
   });
 
-  tournamentStatus.textContent = isTournamentComplete(state.matches)
-    ? `Tournament complete — ${standings[0].name} wins!`
-    : `${state.matches.filter((m) => isValidScore(m.score)).length} of 3 matches played`;
+  tournamentStatus.textContent = statusText(standings);
 }
 
 function renderMatches() {
@@ -321,12 +389,45 @@ setupForm.addEventListener("submit", (event) => {
   }
 
   setupError.classList.add("hidden");
-  startTournament(players);
+  const modeRadio = setupForm.elements["mode"];
+  const mode = modeRadio && modeRadio.value === "endless" ? "endless" : "classic";
+  startTournament(players, mode);
+});
+
+scoreboardBtn.addEventListener("click", () => {
+  view = "scoreboard";
+  render();
+});
+
+backBtn.addEventListener("click", () => {
+  view = "game";
+  render();
+});
+
+addRoundBtn.addEventListener("click", () => {
+  if (!state || state.mode !== "endless" || state.finished) return;
+  state.matches.push(createMatch(state.matches.length));
+  saveState();
+  render();
+  if (isBrowser()) {
+    publish("round").catch(() => {});
+  }
+});
+
+finishBtn.addEventListener("click", () => {
+  if (!state || state.finished) return;
+  state.finished = true;
+  saveState();
+  render();
+  if (isBrowser()) {
+    publish("finish").catch(() => {});
+  }
 });
 
 resetBtn.addEventListener("click", () => {
   localStorage.removeItem(STORAGE_KEY);
   state = null;
+  view = "game";
   setupForm.reset();
   render();
   if (isBrowser()) {

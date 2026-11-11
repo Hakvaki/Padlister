@@ -72,6 +72,8 @@ const elements = {};
 for (const id of [
   "setup-panel", "tournament-panel", "setup-form", "setup-error",
   "players-bar", "standings-table", "matches-list", "tournament-status", "reset-btn",
+  "scoreboard-btn", "add-round-btn", "finish-btn", "scoreboard-panel",
+  "scoreboard-round", "scoreboard-table", "scoreboard-matches", "scoreboard-status", "back-btn",
 ]) {
   elements[id] = new FakeElement("div");
 }

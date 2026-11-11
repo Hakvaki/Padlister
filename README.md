@@ -4,8 +4,7 @@ A zero-dependency web app for a classic 4-player Americano padel tournament.
 
 ## Format
 
-With four players there are exactly three possible pairings, so the tournament
-is three rounds of 2v2:
+With four players there are exactly three possible pairings:
 
 | Round | Team 1 | Team 2 |
 |-------|--------|--------|
@@ -13,9 +12,19 @@ is three rounds of 2v2:
 | 2 | P1 + P3 | P2 + P4 |
 | 3 | P1 + P4 | P2 + P3 |
 
-Everyone partners with everyone else exactly once. Points are the games your
-team wins in each match, accumulated across all three rounds. Standings are
-ordered by points, then matches won, then game difference.
+Two modes are available at setup:
+
+- **Classic** — the three rounds above, everyone partners everyone exactly
+  once. The tournament is complete when all three matches have scores.
+- **Endless** — rounds keep cycling through the same three pairings; tap
+  "Add round" after each match and "End game" when you're done. The current
+  score is always visible.
+
+Points are the games your team wins in each match, accumulated across all
+played rounds. Standings are ordered by points, then matches won, then game
+difference. During a tournament, the **Scoreboard** button switches to a
+large live view (standings + played match scores) that stays in sync on every
+device; "Back to controls" returns to score entry.
 
 ## Run it
 
@@ -90,7 +99,7 @@ refresh keeps the tournament.
 - `app.js` — UI controller (setup, score entry, standings)
 - `logic.js` — pure tournament logic (schedule, validation, standings), shared by browser and tests
 - `config.js` — optional `window.PADEL_DB_URL` pointing at a Firebase Realtime Database URL for live shared scoring on the static page
-- `server.js` — zero-dependency Node server: serves the page and a small REST API (`/api/state`, `/api/tournament`, `/api/matches/:id/score`, `/api/reset`) with JSON file persistence, so multiple browsers share one live tournament
+- `server.js` — zero-dependency Node server: serves the page and a small REST API (`/api/state`, `/api/tournament`, `/api/matches/:id/score`, `/api/round`, `/api/finish`, `/api/reset`) with JSON file persistence, so multiple browsers share one live tournament
 - `test/logic.test.js` — unit tests for the logic module
 - `test/ui.smoke.test.js` — end-to-end UI flow test with a minimal fake DOM
 - `test/server.test.js` — API tests for the server (spins it up on an ephemeral loopback port)

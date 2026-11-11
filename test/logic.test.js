@@ -1,9 +1,12 @@
 const assert = require("node:assert/strict");
 const {
   generateSchedule,
+  createMatch,
+  isValidMode,
   isValidScore,
   computeStandings,
   isTournamentComplete,
+  PAIRINGS,
 } = require("../logic.js");
 
 const PLAYERS = ["Ana", "Ben", "Cleo", "Dan"];
@@ -116,7 +119,29 @@ function testTournamentComplete() {
   assert.ok(isTournamentComplete(matches));
 }
 
+function testCreateMatchCyclesPairings() {
+  for (let i = 0; i < 7; i++) {
+    const m = createMatch(i);
+    assert.equal(m.id, i + 1);
+    assert.equal(m.round, i + 1);
+    assert.deepEqual(m.teams, PAIRINGS[i % PAIRINGS.length].map((t) => [...t]));
+    assert.equal(m.score, null);
+  }
+  assert.deepEqual(generateSchedule(4), [createMatch(0), createMatch(1), createMatch(2)]);
+  assert.throws(() => createMatch(-1));
+  assert.throws(() => createMatch(1.5));
+}
+
+function testModeValidation() {
+  assert.ok(isValidMode("classic"));
+  assert.ok(isValidMode("endless"));
+  assert.ok(!isValidMode(""));
+  assert.ok(!isValidMode("tournament"));
+}
+
 testScheduleShape();
+testCreateMatchCyclesPairings();
+testModeValidation();
 testScheduleRejectsWrongPlayerCount();
 testEachPlayerPartnersWithEveryoneOnce();
 testScoreValidation();

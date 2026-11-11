@@ -95,6 +95,63 @@ async function main() {
       body: JSON.stringify({ a: 4, b: 2 }),
     });
     assert.equal(res.status, 404, "scoring without a tournament rejected");
+
+    res = await fetch(`${base}/api/round`, { method: "POST" });
+    assert.equal(res.status, 404, "adding a round without a tournament rejected");
+
+    res = await fetch(`${base}/api/tournament`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ players: ["Ana", "Ben", "Cleo", "Dan"], mode: "bogus" }),
+    });
+    assert.equal(res.status, 400, "invalid mode rejected");
+
+    res = await fetch(`${base}/api/tournament`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ players: ["Ana", "Ben", "Cleo", "Dan"], mode: "endless" }),
+    });
+    assert.equal(res.status, 200);
+    let endless = await res.json();
+    assert.equal(endless.mode, "endless");
+    assert.equal(endless.finished, false);
+    assert.equal(endless.matches.length, 1, "endless mode starts with round 1");
+
+    res = await fetch(`${base}/api/round`, { method: "POST" });
+    endless = await res.json();
+    assert.equal(res.status, 200);
+    assert.equal(endless.matches.length, 2);
+    assert.equal(endless.matches[1].round, 2);
+
+    res = await fetch(`${base}/api/matches/2/score`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ a: 5, b: 2 }),
+    });
+    assert.equal(res.status, 200);
+
+    res = await fetch(`${base}/api/finish`, { method: "POST" });
+    endless = await res.json();
+    assert.equal(res.status, 200);
+    assert.equal(endless.finished, true);
+
+    res = await fetch(`${base}/api/finish`, { method: "POST" });
+    assert.equal(res.status, 400, "finishing twice rejected");
+
+    res = await fetch(`${base}/api/round`, { method: "POST" });
+    assert.equal(res.status, 400, "adding a round after finish rejected");
+
+    res = await fetch(`${base}/api/reset`, { method: "POST" });
+    assert.equal(res.status, 200);
+
+    res = await fetch(`${base}/api/tournament`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ players: ["Ana", "Ben", "Cleo", "Dan"] }),
+    });
+    assert.equal(res.status, 200);
+    res = await fetch(`${base}/api/round`, { method: "POST" });
+    assert.equal(res.status, 400, "adding a round in classic mode rejected");
   } finally {
     server.close();
     fs.rmSync(tmpDir, { recursive: true, force: true });
