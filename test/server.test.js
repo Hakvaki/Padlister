@@ -193,6 +193,31 @@ async function main() {
     assert.equal(res.status, 200, "host code accepted");
     delete process.env.PADEL_HOST_CODE_HASH;
     await fetch(`${base}/api/reset`, { method: "POST" });
+
+    res = await fetch(`${base}/api/results`, { method: "GET" });
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), [], "results empty initially");
+
+    res = await fetch(`${base}/api/results`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ players: ["Ana", "Ben", "Cleo", "Dan"], standings: [{ name: "Ana", points: 13 }], winner: "Ana" }),
+    });
+    assert.equal(res.status, 200);
+    const row = await res.json();
+    assert.ok(row.id, "result gets an id");
+
+    res = await fetch(`${base}/api/results`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nope: true }),
+    });
+    assert.equal(res.status, 400, "malformed result rejected");
+
+    res = await fetch(`${base}/api/results`, { method: "GET" });
+    const rows = await res.json();
+    assert.equal(rows.length, 1, "result persisted append-only");
+    assert.equal(rows[0].winner, "Ana");
   } finally {
     server.close();
     fs.rmSync(tmpDir, { recursive: true, force: true });

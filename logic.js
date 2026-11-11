@@ -47,18 +47,61 @@ function generateJoinCode(length = 6) {
   return out;
 }
 
-async function hashJoinCode(code) {
-  const input = String(code).trim().toUpperCase();
+async function sha256Hex(text) {
   if (typeof crypto !== "undefined" && crypto.subtle) {
-    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
     return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
   }
   let h = 0xcbf29ce484222325n;
+  const input = String(text);
   for (let i = 0; i < input.length; i++) {
     h ^= BigInt(input.charCodeAt(i));
     h = (h * 0x100000001b3n) & 0xffffffffffffffffn;
   }
   return h.toString(16).padStart(16, "0");
+}
+
+async function hashJoinCode(code) {
+  return sha256Hex(String(code).trim().toUpperCase());
+}
+
+function buildResult(state, prevHash) {
+  const standings = computeStandings(state.players, state.matches);
+  const result = {
+    endedAt: new Date().toISOString(),
+    mode: state.mode,
+    players: [...state.players],
+    matches: state.matches.map((m) => ({ round: m.round, teams: m.teams.map((t) => [...t]), score: m.score })),
+    standings: standings.map((s) => ({ name: s.name, played: s.played, won: s.won, points: s.points })),
+    winner: standings[0].name,
+    prevHash: prevHash || null,
+  };
+  return result;
+}
+
+async function sealResult(result) {
+  const sealed = { ...result, hash: null };
+  sealed.hash = await sha256Hex(JSON.stringify(sealed));
+  return sealed;
+}
+
+function computeSeasonRanking(results) {
+  const byName = new Map();
+  for (const r of results) {
+    for (const s of r.standings || []) {
+      const entry = byName.get(s.name) || { name: s.name, tournaments: 0, wins: 0, points: 0, played: 0 };
+      entry.tournaments += 1;
+      entry.wins += s.name === r.winner ? 1 : 0;
+      entry.points += s.points;
+      entry.played += s.played;
+      byName.set(s.name, entry);
+    }
+  }
+  return [...byName.values()].sort((a, b) => {
+    if (b.points !== a.points) return b.points - a.points;
+    if (b.wins !== a.wins) return b.wins - a.wins;
+    return a.name.localeCompare(b.name);
+  });
 }
 
 function isValidScore(score) {
@@ -117,5 +160,5 @@ function isTournamentComplete(matches) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { generateSchedule, createMatch, isValidMode, isValidScore, computeStandings, isTournamentComplete, generateJoinCode, hashJoinCode, PAIRINGS };
+  module.exports = { generateSchedule, createMatch, isValidMode, isValidScore, computeStandings, isTournamentComplete, generateJoinCode, hashJoinCode, sha256Hex, buildResult, sealResult, computeSeasonRanking, PAIRINGS };
 }

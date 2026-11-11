@@ -403,3 +403,36 @@ input:focus {
   color: var(--court-dark);
   border: 2px solid var(--court-green);
 }
+
+.history-card {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.history-sub {
+  color: var(--court-dark);
+  margin: 1rem 0 0.4rem;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.2rem;
+}
+
+.history-item {
+  background: #eef7f1;
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.95rem;
+}
+
+.history-item .winner {
+  font-weight: 800;
+  color: var(--court-dark);
+}
+
+.history-empty {
+  color: var(--muted);
+}

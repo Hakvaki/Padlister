@@ -32,17 +32,53 @@ const gateForm = document.getElementById("gate-form");
 const gateCodeInput = document.getElementById("gate-code");
 const gateError = document.getElementById("gate-error");
 const gateScoreboardBtn = document.getElementById("gate-scoreboard-btn");
+const historyBtn = document.getElementById("history-btn");
+const historyPanel = document.getElementById("history-panel");
+const historyRanking = document.getElementById("history-ranking");
+const historyList = document.getElementById("history-list");
+const historyBackBtn = document.getElementById("history-back-btn");
 
 let state = null;
 let pollTimer = null;
 let view = "game";
 let unlocked = false;
 let isHost = false;
+let historyCache = null;
+
+const FB_TOKEN_KEY = "padelAmericano4.fbToken";
+
+async function dbToken() {
+  const apiKey = typeof window !== "undefined" ? window.PADEL_FIREBASE_API_KEY : "";
+  if (!apiKey) return null;
+  try {
+    const saved = JSON.parse(localStorage.getItem(FB_TOKEN_KEY) || "null");
+    if (saved && saved.expiresAt > Date.now() + 60000) return saved.token;
+  } catch {
+    // re-auth below
+  }
+  const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ returnSecureToken: true }),
+  });
+  if (!res.ok) throw new Error(`Firebase auth failed (${res.status})`);
+  const data = await res.json();
+  const entry = { token: data.idToken, expiresAt: Date.now() + Number(data.expiresIn) * 1000 };
+  localStorage.setItem(FB_TOKEN_KEY, JSON.stringify(entry));
+  return entry.token;
+}
+
+async function dbFetch(path, options = {}) {
+  let url = `${dbUrl()}/${path}`;
+  const token = await dbToken();
+  if (token) url += `${path.includes("?") ? "&" : "?"}auth=${token}`;
+  return fetch(url, options);
+}
 
 function setView(next) {
   view = next === "host" && !isHost ? "game" : next;
   if (isBrowser() && typeof location !== "undefined" && typeof history !== "undefined") {
-    const hash = view === "host" ? "#invite" : view === "scoreboard" ? "#scoreboard" : "#game";
+    const hash = view === "host" ? "#invite" : view === "scoreboard" ? "#scoreboard" : view === "history" ? "#history" : "#game";
     history.replaceState(null, "", hash);
   }
 }
@@ -52,6 +88,7 @@ function applyHash() {
   const hash = location.hash.replace("#", "");
   if (hash === "scoreboard") setView("scoreboard");
   else if (hash === "invite") setView("host");
+  else if (hash === "history") setView("history");
   else if (hash === "game") setView("game");
 }
 
@@ -92,13 +129,14 @@ function normalizeState(parsed) {
     mode: parsed.mode === "endless" ? "endless" : "classic",
     finished: Boolean(parsed.finished),
     codeHash: typeof parsed.codeHash === "string" ? parsed.codeHash : null,
+    resultArchived: Boolean(parsed.resultArchived),
     matches: parsed.matches.map((m) => ({ ...m, score: m.score || null })),
   };
 }
 
 async function fetchSharedState() {
   if (dbUrl()) {
-    const res = await fetch(`${dbUrl()}/tournament.json`, { cache: "no-store" });
+    const res = await dbFetch("tournament.json", { cache: "no-store" });
     if (!res.ok) throw new Error(`Database read failed (${res.status})`);
     const text = await res.text();
     return normalizeState(text && text !== "null" ? JSON.parse(text) : null);
@@ -106,15 +144,65 @@ async function fetchSharedState() {
   return api("api/state");
 }
 
+async function loadHistory() {
+  if (dbUrl()) {
+    const res = await dbFetch("results.json", { cache: "no-store" });
+    if (!res.ok) throw new Error(`Database read failed (${res.status})`);
+    const data = await res.json();
+    return data ? Object.entries(data).map(([id, r]) => ({ id, ...r })) : [];
+  }
+  return api("api/results");
+}
+
+async function archiveResult(result) {
+  if (dbUrl()) {
+    const prevRes = await dbFetch("meta/lastHash.json", { cache: "no-store" });
+    const prevText = prevRes.ok ? await prevRes.text() : "null";
+    const prevHash = prevText && prevText !== "null" ? JSON.parse(prevText) : null;
+    const sealed = await sealResult({ ...result, prevHash });
+    const res = await dbFetch("results.json", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(sealed),
+    });
+    if (!res.ok) throw new Error(`Archive write failed (${res.status})`);
+    await dbFetch("meta/lastHash.json", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(sealed.hash),
+    });
+    return sealed;
+  }
+  return api("api/results", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(result),
+  });
+}
+
+async function maybeArchive() {
+  if (!isBrowser() || !state || state.resultArchived) return;
+  const done = state.mode === "endless" ? state.finished : isTournamentComplete(state.matches);
+  if (!done) return;
+  state.resultArchived = true;
+  saveState();
+  render();
+  try {
+    await archiveResult(buildResult(state, null));
+  } catch {
+    state.resultArchived = false;
+    saveState();
+  }
+}
+
 async function publish(action, payload) {
   if (dbUrl()) {
-    const url = `${dbUrl()}/tournament.json`;
     if (action === "reset") {
-      const res = await fetch(url, { method: "DELETE" });
+      const res = await dbFetch("tournament.json", { method: "DELETE" });
       if (!res.ok) throw new Error(`Database reset failed (${res.status})`);
       return;
     }
-    const res = await fetch(url, {
+    const res = await dbFetch("tournament.json", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(state),
@@ -274,8 +362,11 @@ function render() {
   hostPanel.classList.toggle("hidden", !(hasState && isHost && view === "host"));
   tournamentPanel.classList.toggle("hidden", !(hasState && unlocked && view === "game"));
   scoreboardPanel.classList.toggle("hidden", !(hasState && view === "scoreboard"));
+  historyPanel.classList.toggle("hidden", !(hasState && view === "history"));
   if (!hasState) return;
   if (view === "host") renderHost();
+  if (view === "history") renderHistory();
+  maybeArchive();
 
   const endlessActive = state.mode === "endless" && !state.finished;
   addRoundBtn.classList.toggle("hidden", !endlessActive);
@@ -316,6 +407,66 @@ function statusText(standings) {
   return isTournamentComplete(state.matches)
     ? `Tournament complete — ${standings[0].name} wins!`
     : `${played} of 3 matches played`;
+}
+
+function renderHistory() {
+  const tbody = historyRanking.querySelector("tbody");
+  tbody.innerHTML = "";
+  historyList.innerHTML = "";
+  if (!historyCache) {
+    loadHistory()
+      .then((rows) => {
+        historyCache = rows;
+        renderHistory();
+      })
+      .catch(() => {
+        historyList.innerHTML = "";
+        const p = document.createElement("p");
+        p.className = "history-empty";
+        p.textContent = "Could not load history.";
+        historyList.appendChild(p);
+      });
+    const loading = document.createElement("p");
+    loading.className = "history-empty";
+    loading.textContent = "Loading…";
+    historyList.appendChild(loading);
+    return;
+  }
+  const ranking = computeSeasonRanking(historyCache);
+  ranking.forEach((r, rank) => {
+    const tr = document.createElement("tr");
+    if (rank === 0) tr.className = "first";
+    for (const value of [rank + 1, r.name, r.tournaments, r.wins, r.points]) {
+      const td = document.createElement("td");
+      td.textContent = value;
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  });
+  const sorted = [...historyCache].sort((a, b) => (b.endedAt || "").localeCompare(a.endedAt || ""));
+  if (sorted.length === 0) {
+    const p = document.createElement("p");
+    p.className = "history-empty";
+    p.textContent = "No finished tournaments yet.";
+    historyList.appendChild(p);
+    return;
+  }
+  for (const r of sorted) {
+    const div = document.createElement("div");
+    div.className = "history-item";
+    const date = r.endedAt ? new Date(r.endedAt).toLocaleString() : "";
+    const scoreLine = (r.standings || []).map((s) => `${s.name} ${s.points}`).join(" · ");
+    div.innerHTML = "";
+    const main = document.createElement("div");
+    const winner = document.createElement("span");
+    winner.className = "winner";
+    winner.textContent = `🏆 ${r.winner}`;
+    main.append(winner, document.createTextNode(` — ${r.mode === "endless" ? "Endless" : "Classic"} · ${date}`));
+    const sub = document.createElement("div");
+    sub.textContent = scoreLine;
+    div.append(main, sub);
+    historyList.appendChild(div);
+  }
 }
 
 function renderScoreboard() {
@@ -508,6 +659,16 @@ hostContinueBtn.addEventListener("click", () => {
 
 gateScoreboardBtn.addEventListener("click", () => {
   setView("scoreboard");
+  render();
+});
+
+historyBtn.addEventListener("click", () => {
+  setView("history");
+  render();
+});
+
+historyBackBtn.addEventListener("click", () => {
+  setView("game");
   render();
 });
 

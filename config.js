@@ -10,3 +10,8 @@ window.PADEL_DB_URL = "https://padlister-f87f6-default-rtdb.europe-west1.firebas
 //   node -e "console.log(require('crypto').createHash('sha256').update('YOUR-CODE').digest('hex'))"
 // Leave empty to disable the host check.
 window.PADEL_HOST_CODE_HASH = "6832af1c7dbb9090c2a40c2863fd74dbfccd10cdaee0e65a5dadee669df97205";
+
+// Firebase web API key (Project settings -> Your apps -> Web API key). Needed
+// for anonymous sign-in so security rules can require auth on writes. The web
+// API key is client-side by design; access control lives in the database rules.
+window.PADEL_FIREBASE_API_KEY = "";

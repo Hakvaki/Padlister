@@ -193,6 +193,34 @@ function createApp() {
       return sendJson(res, 200, null);
     }
 
+    if (pathname === "/api/results" && req.method === "GET") {
+      const file = path.join(path.dirname(DATA_FILE), "results.jsonl");
+      let rows = [];
+      try {
+        rows = fs.readFileSync(file, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
+      } catch {
+        rows = [];
+      }
+      return sendJson(res, 200, rows);
+    }
+
+    if (pathname === "/api/results" && req.method === "POST") {
+      let body;
+      try {
+        body = await readBody(req);
+      } catch {
+        return sendJson(res, 400, { error: "Invalid request body." });
+      }
+      if (!body || !Array.isArray(body.players) || !Array.isArray(body.standings)) {
+        return sendJson(res, 400, { error: "Result must include players and standings." });
+      }
+      const file = path.join(path.dirname(DATA_FILE), "results.jsonl");
+      const row = { id: `r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`, ...body };
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.appendFileSync(file, JSON.stringify(row) + "\n");
+      return sendJson(res, 200, row);
+    }
+
     if (pathname.startsWith("/api/")) {
       return sendJson(res, 404, { error: "Not found." });
     }

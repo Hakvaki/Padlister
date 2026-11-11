@@ -48,6 +48,47 @@ confirmation ("End it and start a new one?") before anything is cleared. The
 local `server.js` enforces the same check when `PADEL_HOST_CODE_HASH` is set in
 its environment. Leave the config empty to disable the host check.
 
+## Storing results (season history, tamper-resistant)
+
+When a tournament ends (classic: all 3 rounds scored; endless: "End game"),
+the final result is archived automatically to an **append-only `results` log**
+with a hash chain (`prevHash` → `hash`), and a **History** view (`#/history`)
+shows past tournaments plus a season ranking (points, then wins).
+
+To make tampering hard, enforce it **server-side** with Firebase Security
+Rules — client-side checks alone can always be bypassed:
+
+1. Enable **Anonymous auth** (Firebase console → Authentication → Sign-in
+   method → Anonymous) and put the project's **web API key** into
+   `config.js` as `window.PADEL_FIREBASE_API_KEY` (the key is client-side by
+   design; the rules are the real gate).
+2. Set the Realtime Database rules to:
+
+```json
+{
+  "rules": {
+    ".read": true,
+    "tournament": {
+      ".write": "auth != null"
+    },
+    "meta": {
+      ".write": "auth != null"
+    },
+    "results": {
+      ".write": "auth != null",
+      "$id": {
+        ".validate": "!data.exists() && newData.exists() && newData.hasChildren(['endedAt','mode','players','matches','standings','winner','hash'])"
+      }
+    }
+  }
+}
+```
+
+With these rules only signed-in clients can write, and existing results can
+never be modified or deleted (`!data.exists()`), so the log is append-only.
+The local `server.js` keeps its own append-only log in `data/results.jsonl`
+(`GET/POST /api/results`).
+
 ## Navigating between views
 
 Views are also reachable by URL hash, so they can be shared or bookmarked:
