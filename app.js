@@ -1,5 +1,6 @@
 const STORAGE_KEY = "padelAmericano4.v1";
 const UNLOCK_KEY = "padelAmericano4.unlock";
+const HOST_KEY = "padelAmericano4.host";
 const POLL_INTERVAL_MS = 2000;
 
 const setupPanel = document.getElementById("setup-panel");
@@ -35,6 +36,11 @@ let state = null;
 let pollTimer = null;
 let view = "game";
 let unlocked = false;
+let isHost = false;
+
+function hostHashConfigured() {
+  return typeof window !== "undefined" && Boolean(window.PADEL_HOST_CODE_HASH);
+}
 
 function isBrowser() {
   return typeof window !== "undefined" && typeof fetch === "function";
@@ -103,7 +109,7 @@ async function publish(action, payload) {
     return api("api/tournament", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ players: payload.players, mode: payload.mode, codeHash: payload.codeHash || null }),
+      body: JSON.stringify({ players: payload.players, mode: payload.mode, codeHash: payload.codeHash || null, hostCodeHash: payload.hostCodeHash || null }),
     });
   }
   if (action === "round") {
@@ -155,7 +161,7 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
-function startTournament(players, mode) {
+function startTournament(players, mode, hostCodeHash) {
   const code = generateJoinCode();
   localStorage.setItem(UNLOCK_KEY, code);
   unlocked = true;
@@ -175,7 +181,7 @@ function startTournament(players, mode) {
     saveState();
     render();
     if (isBrowser()) {
-      publish("tournament", { players, mode, codeHash }).catch((err) => {
+      publish("tournament", { players, mode, codeHash, hostCodeHash }).catch((err) => {
         if (err && err.status === 409) syncShared();
       });
     }
@@ -183,6 +189,12 @@ function startTournament(players, mode) {
 }
 
 async function refreshGate() {
+  if (hostHashConfigured()) {
+    const savedHost = localStorage.getItem(HOST_KEY);
+    isHost = savedHost !== null && (await hashJoinCode(savedHost)) === window.PADEL_HOST_CODE_HASH;
+  } else {
+    isHost = true;
+  }
   if (!state) {
     unlocked = false;
     return;
@@ -251,6 +263,7 @@ function render() {
   const endlessActive = state.mode === "endless" && !state.finished;
   addRoundBtn.classList.toggle("hidden", !endlessActive);
   finishBtn.classList.toggle("hidden", state.mode !== "endless" || state.finished);
+  resetBtn.classList.toggle("hidden", !isHost);
 
   playersBar.innerHTML = "";
   for (const name of state.players) {
@@ -422,7 +435,7 @@ function buildMatchCard(match) {
   return card;
 }
 
-setupForm.addEventListener("submit", (event) => {
+setupForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const players = [0, 1, 2, 3].map((i) => {
     const value = setupForm.elements[`player${i}`].value.trim();
@@ -441,10 +454,23 @@ setupForm.addEventListener("submit", (event) => {
     return;
   }
 
+  let hostCodeHash = null;
+  if (hostHashConfigured()) {
+    const hostInput = setupForm.elements["hostCode"];
+    const hostCode = hostInput ? hostInput.value.trim() : "";
+    hostCodeHash = hostCode ? await hashJoinCode(hostCode) : null;
+    if (!hostCodeHash || hostCodeHash !== window.PADEL_HOST_CODE_HASH) {
+      setupError.textContent = "Only the host can start a tournament — enter the host code.";
+      setupError.classList.remove("hidden");
+      return;
+    }
+    localStorage.setItem(HOST_KEY, hostCode.toUpperCase());
+  }
+
   setupError.classList.add("hidden");
   const modeRadio = setupForm.elements["mode"];
   const mode = modeRadio && modeRadio.value === "endless" ? "endless" : "classic";
-  startTournament(players, mode);
+  startTournament(players, mode, hostCodeHash);
 });
 
 scoreboardBtn.addEventListener("click", () => {
@@ -503,6 +529,9 @@ finishBtn.addEventListener("click", () => {
 });
 
 resetBtn.addEventListener("click", () => {
+  if (state !== null && typeof confirm === "function") {
+    if (!confirm("A tournament is already in session. End it and start a new one?")) return;
+  }
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(UNLOCK_KEY);
   state = null;

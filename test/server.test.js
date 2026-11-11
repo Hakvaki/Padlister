@@ -174,6 +174,25 @@ async function main() {
     assert.equal(res.status, 200);
     res = await fetch(`${base}/api/round`, { method: "POST" });
     assert.equal(res.status, 400, "adding a round in classic mode rejected");
+
+    res = await fetch(`${base}/api/reset`, { method: "POST" });
+    assert.equal(res.status, 200);
+
+    process.env.PADEL_HOST_CODE_HASH = "host-hash-123";
+    res = await fetch(`${base}/api/tournament`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ players: ["Ana", "Ben", "Cleo", "Dan"] }),
+    });
+    assert.equal(res.status, 403, "tournament start rejected without host code when configured");
+    res = await fetch(`${base}/api/tournament`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ players: ["Ana", "Ben", "Cleo", "Dan"], hostCodeHash: "host-hash-123" }),
+    });
+    assert.equal(res.status, 200, "host code accepted");
+    delete process.env.PADEL_HOST_CODE_HASH;
+    await fetch(`${base}/api/reset`, { method: "POST" });
   } finally {
     server.close();
     fs.rmSync(tmpDir, { recursive: true, force: true });

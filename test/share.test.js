@@ -80,7 +80,7 @@ for (const id of [
   elements[id] = new FakeElement("div");
 }
 const formInputs = {};
-for (const name of ["player0", "player1", "player2", "player3"]) {
+for (const name of ["player0", "player1", "player2", "player3", "hostCode"]) {
   formInputs[name] = new FakeElement("input");
 }
 elements["setup-form"].elements = formInputs;
@@ -104,16 +104,29 @@ const settle = () => new Promise((r) => setTimeout(r, 50));
 
 async function main() {
   await new Promise((resolve) => dbServer.listen(0, "127.0.0.1", resolve));
-  global.window = { PADEL_DB_URL: `http://127.0.0.1:${dbServer.address().port}` };
+  const hostHash = require("node:crypto").createHash("sha256").update("SECRET1").digest("hex");
+  global.window = {
+    PADEL_DB_URL: `http://127.0.0.1:${dbServer.address().port}`,
+    PADEL_HOST_CODE_HASH: hostHash,
+  };
 
   const appSource = fs.readFileSync(path.join(__dirname, "..", "app.js"), "utf8");
   eval(appSource);
   await settle();
 
-  const submitNames = (names) => {
+  const submitNames = (names, hostCode = "secret1") => {
     names.forEach((n, i) => { formInputs[`player${i}`].value = n; });
+    formInputs["hostCode"].value = hostCode;
     elements["setup-form"].dispatch("submit", { preventDefault() {} });
   };
+
+  submitNames(["Ana", "Ben", "Cleo", "Dan"], "wrong-code");
+  await settle();
+  assert.ok(!elements["setup-error"].classList.contains("hidden"), "wrong host code rejected");
+  assert.equal(dbValue, null, "no tournament started without the host code");
+  submitNames(["Ana", "Ben", "Cleo", "Dan"], "");
+  await settle();
+  assert.equal(dbValue, null, "missing host code rejected too");
   const saveScore = (matchIndex, a, b) => {
     const card = elements["matches-list"].children[matchIndex];
     const row = card.children.find((c) => c.classList.contains("score-row"));

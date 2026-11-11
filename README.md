@@ -36,6 +36,18 @@ Only a SHA-256 hash of the code is stored in the shared state — never the code
 itself. Note this is client-side gating for casual play: the Firebase rules
 are still open, so it keeps honest players out of the controls, not attackers.
 
+## Host-only controls
+
+Set `window.PADEL_HOST_CODE_HASH` in `config.js` to the SHA-256 hex of a secret
+host code (compute it with
+`node -e "console.log(require('crypto').createHash('sha256').update('YOUR-CODE').digest('hex'))"`).
+Then only the device that knows the host code can **start a tournament** (the
+setup form asks for it) or press **New tournament** — the button is hidden for
+everyone else. When a tournament is already in session, pressing it asks for
+confirmation ("End it and start a new one?") before anything is cleared. The
+local `server.js` enforces the same check when `PADEL_HOST_CODE_HASH` is set in
+its environment. Leave the config empty to disable the host check.
+
 ## Run it
 
 ### Always-on page via GitHub Pages (like the countdown repo)

@@ -130,6 +130,10 @@ function createApp() {
       if (loadState()) {
         return sendJson(res, 409, { error: "A tournament is already in progress." });
       }
+      const hostCodeHashEnv = process.env.PADEL_HOST_CODE_HASH || "";
+      if (hostCodeHashEnv && body.hostCodeHash !== hostCodeHashEnv) {
+        return sendJson(res, 403, { error: "Only the host can start a tournament." });
+      }
       const codeHash = typeof body.codeHash === "string" && body.codeHash.length <= 128 ? body.codeHash : null;
       const state = {
         players,
