@@ -1,4 +1,5 @@
 const STORAGE_KEY = "padelAmericano4.v1";
+const POLL_INTERVAL_MS = 2000;
 
 const setupPanel = document.getElementById("setup-panel");
 const tournamentPanel = document.getElementById("tournament-panel");
@@ -11,6 +12,28 @@ const tournamentStatus = document.getElementById("tournament-status");
 const resetBtn = document.getElementById("reset-btn");
 
 let state = null;
+let pollTimer = null;
+
+function isBrowser() {
+  return typeof window !== "undefined" && typeof fetch === "function";
+}
+
+async function api(path, options) {
+  const res = await fetch(path, options);
+  if (!res.ok) {
+    const err = new Error(`Request failed (${res.status})`);
+    err.status = res.status;
+    try {
+      const data = await res.json();
+      if (data && data.error) err.message = data.error;
+    } catch {
+      // keep generic message
+    }
+    throw err;
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
 
 function loadState() {
   try {
@@ -33,6 +56,52 @@ function startTournament(players) {
   state = { players, matches: generateSchedule(4) };
   saveState();
   render();
+  if (isBrowser()) {
+    api("/api/tournament", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ players }),
+    }).catch((err) => {
+      if (err && err.status === 409) syncFromServer();
+    });
+  }
+}
+
+async function syncFromServer() {
+  if (!isBrowser()) return;
+  try {
+    const incoming = await api("/api/state");
+    if (incoming && JSON.stringify(incoming) !== JSON.stringify(state)) {
+      state = incoming;
+      saveState();
+      renderPreservingFocus();
+    } else if (!incoming && state !== null) {
+      state = null;
+      saveState();
+      renderPreservingFocus();
+    }
+  } catch {
+    // offline: keep local state
+  }
+}
+
+function renderPreservingFocus() {
+  const active = typeof document !== "undefined" ? document.activeElement : null;
+  const label = active && typeof active.getAttribute === "function" ? active.getAttribute("aria-label") : null;
+  const value = active ? active.value : null;
+  render();
+  if (label && typeof document.querySelector === "function") {
+    const next = document.querySelector(`input[aria-label="${label}"]`);
+    if (next) {
+      next.value = value;
+      next.focus();
+    }
+  }
+}
+
+function startPolling() {
+  if (!isBrowser() || pollTimer !== null) return;
+  pollTimer = setInterval(syncFromServer, POLL_INTERVAL_MS);
 }
 
 function teamNames(team) {
@@ -151,6 +220,15 @@ function buildMatchCard(match) {
     match.score = score;
     saveState();
     render();
+    if (isBrowser()) {
+      api(`/api/matches/${match.id}/score`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(score),
+      }).catch((err) => {
+        if (err && err.status === 404) syncFromServer();
+      });
+    }
   });
 
   row.append(inputA, dash, inputB, saveBtn, error);
@@ -186,7 +264,14 @@ resetBtn.addEventListener("click", () => {
   state = null;
   setupForm.reset();
   render();
+  if (isBrowser()) {
+    api("/api/reset", { method: "POST" }).catch(() => {});
+  }
 });
 
 state = loadState();
 render();
+if (isBrowser()) {
+  syncFromServer();
+  startPolling();
+}

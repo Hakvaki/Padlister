@@ -19,15 +19,34 @@ ordered by points, then matches won, then game difference.
 
 ## Run it
 
-Open `index.html` in a browser, or serve the folder:
+### Shared play session (recommended)
+
+Start the zero-dependency Node server:
+
+```
+node server.js
+```
+
+then open `http://localhost:8000` in Chrome. Others on the same network can
+open `http://<your-computer-ip>:8000` (e.g. `http://192.168.1.20:8000`) and
+join the same tournament — everyone can enter player names and scores, and all
+devices stay in sync (the page polls the server every 2 seconds). Set `HOST`
+and `PORT` to change the bind address, e.g. `PORT=3000 node server.js`.
+
+Tournament state is persisted on the server in `data/tournament.json`, so
+restarting the server keeps the session. Each browser also keeps a
+`localStorage` copy as an offline fallback when the server is unreachable.
+
+### Single browser, no server
+
+Open `index.html` directly in a browser, or serve the folder:
 
 ```
 python3 -m http.server 8000
 ```
 
-then visit `http://localhost:8000`.
-
-Progress is saved in `localStorage`, so a refresh keeps the tournament.
+then visit `http://localhost:8000`. Progress is saved in `localStorage`, so a
+refresh keeps the tournament.
 
 ## Files
 
@@ -35,12 +54,15 @@ Progress is saved in `localStorage`, so a refresh keeps the tournament.
 - `styles.css` — padel-court styling
 - `app.js` — UI controller (setup, score entry, standings)
 - `logic.js` — pure tournament logic (schedule, validation, standings), shared by browser and tests
+- `server.js` — zero-dependency Node server: serves the page and a small REST API (`/api/state`, `/api/tournament`, `/api/matches/:id/score`, `/api/reset`) with JSON file persistence, so multiple browsers share one live tournament
 - `test/logic.test.js` — unit tests for the logic module
 - `test/ui.smoke.test.js` — end-to-end UI flow test with a minimal fake DOM
+- `test/server.test.js` — API tests for the server (spins it up on an ephemeral loopback port)
 
 ## Tests
 
 ```
 node test/logic.test.js
 node test/ui.smoke.test.js
+node test/server.test.js
 ```
