@@ -29,9 +29,27 @@ https://hakvaki.github.io/Padlister/
 ```
 
 Note: on the free plan GitHub Pages only serves **public** repositories, so
-make this repo public first (same as the `countdown` repo). The page is fully
-static — each browser keeps its own tournament in `localStorage`, and any
-`/api/*` calls fail silently without a backend.
+make this repo public first (same as the `countdown` repo).
+
+### Sharing scores from the static page (iPhone-friendly, no server)
+
+The page can sync a live shared tournament through a free **Firebase Realtime
+Database**, using only its REST API — no SDK, no build step:
+
+1. Create a free project at [console.firebase.google.com](https://console.firebase.google.com),
+   add a **Realtime Database** (any region), and set its rules to
+   `{"rules": {".read": true, ".write": true}}` (fine for a throwaway game;
+   the database URL is not a secret, the rules are the access control).
+2. In Project settings → Your apps, copy the `databaseURL`
+   (e.g. `https://<project>-default-rtdb.europe-west1.firebasedatabase.app`).
+3. Put it in `config.js` as `window.PADEL_DB_URL = "..."` and commit — you can
+   edit the file right on GitHub from your iPhone. Leave it empty to play
+   per-device only.
+4. Open the Pages URL on every phone. Everyone can enter the four names and
+   scores; all devices poll the database every 2 seconds and stay in sync.
+   Without a database URL, the page silently falls back to per-device
+   `localStorage` (and to the local `api/*` endpoints when served by
+   `server.js`).
 
 ### Shared play session (multiple devices, one live tournament)
 
@@ -71,10 +89,12 @@ refresh keeps the tournament.
 - `styles.css` — padel-court styling
 - `app.js` — UI controller (setup, score entry, standings)
 - `logic.js` — pure tournament logic (schedule, validation, standings), shared by browser and tests
+- `config.js` — optional `window.PADEL_DB_URL` pointing at a Firebase Realtime Database URL for live shared scoring on the static page
 - `server.js` — zero-dependency Node server: serves the page and a small REST API (`/api/state`, `/api/tournament`, `/api/matches/:id/score`, `/api/reset`) with JSON file persistence, so multiple browsers share one live tournament
 - `test/logic.test.js` — unit tests for the logic module
 - `test/ui.smoke.test.js` — end-to-end UI flow test with a minimal fake DOM
 - `test/server.test.js` — API tests for the server (spins it up on an ephemeral loopback port)
+- `test/share.test.js` — shared-sync test against a mock Firebase-style REST database on loopback
 
 ## Tests
 
@@ -82,4 +102,5 @@ refresh keeps the tournament.
 node test/logic.test.js
 node test/ui.smoke.test.js
 node test/server.test.js
+node test/share.test.js
 ```
