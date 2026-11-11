@@ -9,4 +9,4 @@ window.PADEL_DB_URL = "https://padlister-f87f6-default-rtdb.europe-west1.firebas
 // or end a tournament. Put the SHA-256 hex of your secret code here, e.g. run:
 //   node -e "console.log(require('crypto').createHash('sha256').update('YOUR-CODE').digest('hex'))"
 // Leave empty to disable the host check.
-window.PADEL_HOST_CODE_HASH = "";
+window.PADEL_HOST_CODE_HASH = "6832af1c7dbb9090c2a40c2863fd74dbfccd10cdaee0e65a5dadee669df97205";
