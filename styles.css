@@ -269,3 +269,89 @@ input:focus {
   color: var(--court-dark);
   margin-top: 0.5rem;
 }
+
+.mode-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.mode-picker label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: var(--court-dark);
+  cursor: pointer;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+}
+
+.toolbar .btn:not(.primary) {
+  background: #eef7f1;
+  color: var(--court-dark);
+  border: 2px solid var(--court-green);
+}
+
+.scoreboard {
+  background: var(--panel);
+  border-radius: 14px;
+  padding: 1.5rem 1.5rem 2rem;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.scoreboard h2 {
+  margin-top: 0;
+  color: var(--court-dark);
+  border-bottom: 3px solid var(--court-green);
+  display: inline-block;
+  padding-bottom: 0.2rem;
+}
+
+.scoreboard-round {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.scoreboard-table {
+  margin: 0.5rem auto 1rem;
+  max-width: 480px;
+}
+
+.scoreboard-table th,
+.scoreboard-table td {
+  padding: 0.8rem 1rem;
+  font-size: 1.5rem;
+}
+
+.scoreboard-table tr.first td {
+  font-size: 1.8rem;
+}
+
+.scoreboard-matches {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.scoreboard-match {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--court-dark);
+}
+
+.scoreboard-match .score {
+  font-weight: 800;
+  margin: 0 0.4rem;
+}

@@ -23,6 +23,10 @@
           <input type="text" name="player2" maxlength="20" placeholder="Player 3" required />
           <input type="text" name="player3" maxlength="20" placeholder="Player 4" required />
         </div>
+        <div class="mode-picker">
+          <label><input type="radio" name="mode" value="classic" checked /> Classic &mdash; 3 rounds, everyone partners everyone</label>
+          <label><input type="radio" name="mode" value="endless" /> Endless &mdash; rounds keep coming until you end the game</label>
+        </div>
         <p id="setup-error" class="error hidden"></p>
         <button type="submit" class="btn primary">Start tournament</button>
       </form>
@@ -30,6 +34,12 @@
 
     <section id="tournament-panel" class="hidden">
       <div class="players-bar" id="players-bar"></div>
+
+      <div class="toolbar">
+        <button id="scoreboard-btn" class="btn primary">Scoreboard</button>
+        <button id="add-round-btn" class="btn hidden">Add round</button>
+        <button id="finish-btn" class="btn hidden">End game</button>
+      </div>
 
       <div class="columns">
         <section class="panel">
@@ -53,6 +63,24 @@
       </div>
 
       <button id="reset-btn" class="btn danger">New tournament</button>
+    </section>
+
+    <section id="scoreboard-panel" class="hidden">
+      <div class="scoreboard">
+        <h2>Live score</h2>
+        <p id="scoreboard-round" class="scoreboard-round"></p>
+        <table class="standings scoreboard-table" id="scoreboard-table">
+          <thead>
+            <tr>
+              <th>#</th><th>Player</th><th>W</th><th>Pts</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div id="scoreboard-matches" class="scoreboard-matches"></div>
+        <p id="scoreboard-status" class="status"></p>
+        <button id="back-btn" class="btn primary">Back to controls</button>
+      </div>
     </section>
   </main>
 

@@ -1,7 +1,7 @@
 const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
-const { generateSchedule, isValidScore } = require("./logic.js");
+const { generateSchedule, createMatch, isValidMode, isValidScore } = require("./logic.js");
 
 const ROOT = __dirname;
 const DATA_FILE = process.env.PADEL_DATA_FILE || path.join(ROOT, "data", "tournament.json");
@@ -21,7 +21,8 @@ function loadState() {
     const raw = fs.readFileSync(DATA_FILE, "utf8");
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed.players) || parsed.players.length !== 4) return null;
-    if (!Array.isArray(parsed.matches) || parsed.matches.length !== 3) return null;
+    if (!Array.isArray(parsed.matches)) return null;
+    if (parsed.mode !== undefined && !isValidMode(parsed.mode)) return null;
     return parsed;
   } catch {
     return null;
@@ -122,10 +123,40 @@ function createApp() {
       const players = Array.isArray(body.players) ? body.players.map((p) => String(p).trim()) : null;
       const error = validatePlayers(players);
       if (error) return sendJson(res, 400, { error });
+      const mode = body.mode === undefined ? "classic" : body.mode;
+      if (!isValidMode(mode)) {
+        return sendJson(res, 400, { error: "mode must be \"classic\" or \"endless\"." });
+      }
       if (loadState()) {
         return sendJson(res, 409, { error: "A tournament is already in progress." });
       }
-      const state = { players, matches: generateSchedule(4) };
+      const state = {
+        players,
+        mode,
+        finished: false,
+        matches: mode === "endless" ? [createMatch(0)] : generateSchedule(4),
+      };
+      saveState(state);
+      return sendJson(res, 200, state);
+    }
+
+    if (pathname === "/api/round" && req.method === "POST") {
+      const state = loadState();
+      if (!state) return sendJson(res, 404, { error: "No active tournament." });
+      if ((state.mode || "classic") !== "endless") {
+        return sendJson(res, 400, { error: "Rounds can only be added in endless mode." });
+      }
+      if (state.finished) return sendJson(res, 400, { error: "The game is already finished." });
+      state.matches.push(createMatch(state.matches.length));
+      saveState(state);
+      return sendJson(res, 200, state);
+    }
+
+    if (pathname === "/api/finish" && req.method === "POST") {
+      const state = loadState();
+      if (!state) return sendJson(res, 404, { error: "No active tournament." });
+      if (state.finished) return sendJson(res, 400, { error: "The game is already finished." });
+      state.finished = true;
       saveState(state);
       return sendJson(res, 200, state);
     }
