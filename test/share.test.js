@@ -74,6 +74,8 @@ for (const id of [
   "players-bar", "standings-table", "matches-list", "tournament-status", "reset-btn",
   "scoreboard-btn", "add-round-btn", "finish-btn", "scoreboard-panel",
   "scoreboard-round", "scoreboard-table", "scoreboard-matches", "scoreboard-status", "back-btn",
+  "host-panel", "qr-img", "join-code", "join-url", "host-continue-btn",
+  "gate-panel", "gate-form", "gate-code", "gate-error", "gate-scoreboard-btn",
 ]) {
   elements[id] = new FakeElement("div");
 }
@@ -124,6 +126,8 @@ async function main() {
   await settle();
   assert.deepEqual(dbValue.players, ["Ana", "Ben", "Cleo", "Dan"], "tournament published to shared db");
   assert.equal(dbValue.matches.length, 3);
+  assert.match(dbValue.codeHash, /^[0-9a-f]{64}$/, "only the code hash is shared, not the code");
+  elements["host-continue-btn"].click();
 
   saveScore(0, 4, 2);
   saveScore(2, 6, 1);

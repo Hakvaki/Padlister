@@ -1,4 +1,5 @@
 const STORAGE_KEY = "padelAmericano4.v1";
+const UNLOCK_KEY = "padelAmericano4.unlock";
 const POLL_INTERVAL_MS = 2000;
 
 const setupPanel = document.getElementById("setup-panel");
@@ -19,10 +20,21 @@ const scoreboardTable = document.getElementById("scoreboard-table");
 const scoreboardMatches = document.getElementById("scoreboard-matches");
 const scoreboardStatus = document.getElementById("scoreboard-status");
 const backBtn = document.getElementById("back-btn");
+const hostPanel = document.getElementById("host-panel");
+const qrImg = document.getElementById("qr-img");
+const joinCode = document.getElementById("join-code");
+const joinUrl = document.getElementById("join-url");
+const hostContinueBtn = document.getElementById("host-continue-btn");
+const gatePanel = document.getElementById("gate-panel");
+const gateForm = document.getElementById("gate-form");
+const gateCodeInput = document.getElementById("gate-code");
+const gateError = document.getElementById("gate-error");
+const gateScoreboardBtn = document.getElementById("gate-scoreboard-btn");
 
 let state = null;
 let pollTimer = null;
 let view = "game";
+let unlocked = false;
 
 function isBrowser() {
   return typeof window !== "undefined" && typeof fetch === "function";
@@ -56,6 +68,7 @@ function normalizeState(parsed) {
     players: parsed.players,
     mode: parsed.mode === "endless" ? "endless" : "classic",
     finished: Boolean(parsed.finished),
+    codeHash: typeof parsed.codeHash === "string" ? parsed.codeHash : null,
     matches: parsed.matches.map((m) => ({ ...m, score: m.score || null })),
   };
 }
@@ -90,7 +103,7 @@ async function publish(action, payload) {
     return api("api/tournament", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ players: payload.players, mode: payload.mode }),
+      body: JSON.stringify({ players: payload.players, mode: payload.mode, codeHash: payload.codeHash || null }),
     });
   }
   if (action === "round") {
@@ -143,19 +156,43 @@ function saveState() {
 }
 
 function startTournament(players, mode) {
+  const code = generateJoinCode();
+  localStorage.setItem(UNLOCK_KEY, code);
+  unlocked = true;
+  view = "host";
   state = {
     players,
     mode,
     finished: false,
+    codeHash: null,
     matches: mode === "endless" ? [createMatch(0)] : generateSchedule(4),
   };
   saveState();
   render();
-  if (isBrowser()) {
-    publish("tournament", { players, mode }).catch((err) => {
-      if (err && err.status === 409) syncShared();
-    });
+  hashJoinCode(code).then((codeHash) => {
+    if (!state) return;
+    state.codeHash = codeHash;
+    saveState();
+    render();
+    if (isBrowser()) {
+      publish("tournament", { players, mode, codeHash }).catch((err) => {
+        if (err && err.status === 409) syncShared();
+      });
+    }
+  });
+}
+
+async function refreshGate() {
+  if (!state) {
+    unlocked = false;
+    return;
   }
+  if (!state.codeHash) {
+    unlocked = true;
+    return;
+  }
+  const saved = localStorage.getItem(UNLOCK_KEY);
+  unlocked = saved !== null && (await hashJoinCode(saved)) === state.codeHash;
 }
 
 async function syncShared() {
@@ -165,9 +202,11 @@ async function syncShared() {
     if (incoming && canonical(incoming) !== canonical(state)) {
       state = incoming;
       saveState();
+      await refreshGate();
       renderPreservingFocus();
     } else if (!incoming && state !== null) {
       state = null;
+      unlocked = false;
       saveState();
       renderPreservingFocus();
     }
@@ -202,9 +241,12 @@ function teamNames(team) {
 function render() {
   const hasState = state !== null;
   setupPanel.classList.toggle("hidden", hasState);
-  tournamentPanel.classList.toggle("hidden", !hasState || view !== "game");
-  scoreboardPanel.classList.toggle("hidden", !hasState || view !== "scoreboard");
+  gatePanel.classList.toggle("hidden", !(hasState && !unlocked));
+  hostPanel.classList.toggle("hidden", !(hasState && unlocked && view === "host"));
+  tournamentPanel.classList.toggle("hidden", !(hasState && unlocked && view === "game"));
+  scoreboardPanel.classList.toggle("hidden", !(hasState && view === "scoreboard"));
   if (!hasState) return;
+  if (view === "host") renderHost();
 
   const endlessActive = state.mode === "endless" && !state.finished;
   addRoundBtn.classList.toggle("hidden", !endlessActive);
@@ -221,6 +263,17 @@ function render() {
   renderStandings();
   renderMatches();
   renderScoreboard();
+}
+
+function renderHost() {
+  const code = localStorage.getItem(UNLOCK_KEY) || "";
+  joinCode.textContent = code;
+  if (typeof location !== "undefined") {
+    const base = `${location.origin}${location.pathname}`;
+    const url = `${base}?join=${encodeURIComponent(code)}`;
+    joinUrl.textContent = url;
+    qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=${encodeURIComponent(url)}`;
+  }
 }
 
 function statusText(standings) {
@@ -399,6 +452,31 @@ scoreboardBtn.addEventListener("click", () => {
   render();
 });
 
+hostContinueBtn.addEventListener("click", () => {
+  view = "game";
+  render();
+});
+
+gateScoreboardBtn.addEventListener("click", () => {
+  view = "scoreboard";
+  render();
+});
+
+gateForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const code = gateCodeInput.value.trim().toUpperCase();
+  if (state && state.codeHash && (await hashJoinCode(code)) === state.codeHash) {
+    localStorage.setItem(UNLOCK_KEY, code);
+    unlocked = true;
+    view = "game";
+    gateError.classList.add("hidden");
+    render();
+  } else {
+    gateError.textContent = "Wrong code — ask the host for the 6-character code.";
+    gateError.classList.remove("hidden");
+  }
+});
+
 backBtn.addEventListener("click", () => {
   view = "game";
   render();
@@ -426,7 +504,9 @@ finishBtn.addEventListener("click", () => {
 
 resetBtn.addEventListener("click", () => {
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(UNLOCK_KEY);
   state = null;
+  unlocked = false;
   view = "game";
   setupForm.reset();
   render();
@@ -435,8 +515,14 @@ resetBtn.addEventListener("click", () => {
   }
 });
 
+if (isBrowser() && typeof location !== "undefined") {
+  const join = new URLSearchParams(location.search).get("join");
+  if (join) localStorage.setItem(UNLOCK_KEY, join.trim().toUpperCase());
+}
+
 state = loadState();
 render();
+refreshGate().then(render);
 if (isBrowser()) {
   syncShared();
   startPolling();

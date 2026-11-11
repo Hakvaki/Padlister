@@ -31,6 +31,36 @@ function isValidMode(mode) {
   return mode === "classic" || mode === "endless";
 }
 
+const JOIN_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+
+function generateJoinCode(length = 6) {
+  let out = "";
+  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+    const bytes = new Uint8Array(length);
+    crypto.getRandomValues(bytes);
+    for (let i = 0; i < length; i++) out += JOIN_CODE_ALPHABET[bytes[i] % JOIN_CODE_ALPHABET.length];
+  } else {
+    for (let i = 0; i < length; i++) {
+      out += JOIN_CODE_ALPHABET[Math.floor(Math.random() * JOIN_CODE_ALPHABET.length)];
+    }
+  }
+  return out;
+}
+
+async function hashJoinCode(code) {
+  const input = String(code).trim().toUpperCase();
+  if (typeof crypto !== "undefined" && crypto.subtle) {
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
+    return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  let h = 0xcbf29ce484222325n;
+  for (let i = 0; i < input.length; i++) {
+    h ^= BigInt(input.charCodeAt(i));
+    h = (h * 0x100000001b3n) & 0xffffffffffffffffn;
+  }
+  return h.toString(16).padStart(16, "0");
+}
+
 function isValidScore(score) {
   if (!score) return false;
   const { a, b } = score;
@@ -87,5 +117,5 @@ function isTournamentComplete(matches) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { generateSchedule, createMatch, isValidMode, isValidScore, computeStandings, isTournamentComplete, PAIRINGS };
+  module.exports = { generateSchedule, createMatch, isValidMode, isValidScore, computeStandings, isTournamentComplete, generateJoinCode, hashJoinCode, PAIRINGS };
 }

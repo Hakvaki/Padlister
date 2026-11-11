@@ -130,10 +130,12 @@ function createApp() {
       if (loadState()) {
         return sendJson(res, 409, { error: "A tournament is already in progress." });
       }
+      const codeHash = typeof body.codeHash === "string" && body.codeHash.length <= 128 ? body.codeHash : null;
       const state = {
         players,
         mode,
         finished: false,
+        codeHash,
         matches: mode === "endless" ? [createMatch(0)] : generateSchedule(4),
       };
       saveState(state);

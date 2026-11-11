@@ -41,8 +41,30 @@ async function main() {
     const state = await res.json();
     assert.deepEqual(state.players, ["Ana", "Ben", "Cleo", "Dan"]);
     assert.equal(state.matches.length, 3);
+    assert.equal(state.codeHash, null);
     assert.ok(state.matches.every((m) => m.score === null));
     assert.ok(loadState(), "state persisted to disk");
+
+    res = await fetch(`${base}/api/reset`, { method: "POST" });
+    assert.equal(res.status, 200);
+
+    res = await fetch(`${base}/api/tournament`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ players: ["Ana", "Ben", "Cleo", "Dan"], codeHash: "deadbeef" }),
+    });
+    assert.equal(res.status, 200);
+    assert.equal((await res.json()).codeHash, "deadbeef", "code hash stored");
+
+    res = await fetch(`${base}/api/reset`, { method: "POST" });
+    assert.equal(res.status, 200);
+
+    res = await fetch(`${base}/api/tournament`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ players: ["Ana", "Ben", "Cleo", "Dan"] }),
+    });
+    assert.equal(res.status, 200, "tournament recreated for the 409 check");
 
     res = await fetch(`${base}/api/tournament`, {
       method: "POST",

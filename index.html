@@ -65,6 +65,30 @@
       <button id="reset-btn" class="btn danger">New tournament</button>
     </section>
 
+    <section id="host-panel" class="hidden">
+      <div class="panel host-card">
+        <h2>Invite players</h2>
+        <p class="hint">Others scan this QR code with their phone camera, or type the code, to unlock score editing. Anyone can watch the live scoreboard without the code.</p>
+        <img id="qr-img" class="qr" alt="QR code linking to this tournament" />
+        <p class="join-code" id="join-code"></p>
+        <p class="hint join-url" id="join-url"></p>
+        <button id="host-continue-btn" class="btn primary">Continue to game</button>
+      </div>
+    </section>
+
+    <section id="gate-panel" class="hidden">
+      <div class="panel gate-card">
+        <h2>Tournament locked</h2>
+        <p class="hint">Enter the 6-character code from the host (or scan their QR code) to edit scores.</p>
+        <form id="gate-form">
+          <input type="text" id="gate-code" maxlength="6" placeholder="Code" autocomplete="off" required />
+          <p id="gate-error" class="error hidden"></p>
+          <button type="submit" class="btn primary">Unlock editing</button>
+        </form>
+        <button id="gate-scoreboard-btn" class="btn">View live scoreboard</button>
+      </div>
+    </section>
+
     <section id="scoreboard-panel" class="hidden">
       <div class="scoreboard">
         <h2>Live score</h2>

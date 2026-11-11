@@ -26,6 +26,16 @@ difference. During a tournament, the **Scoreboard** button switches to a
 large live view (standings + played match scores) that stays in sync on every
 device; "Back to controls" returns to score entry.
 
+## Join code (light access control)
+
+When a tournament starts, the host sees an invite screen with a random
+6-character code and a QR code linking to the page with that code embedded
+(`...?join=CODE`). Players scan the QR code or type the code to unlock score
+editing on their device; the live scoreboard stays viewable without the code.
+Only a SHA-256 hash of the code is stored in the shared state — never the code
+itself. Note this is client-side gating for casual play: the Firebase rules
+are still open, so it keeps honest players out of the controls, not attackers.
+
 ## Run it
 
 ### Always-on page via GitHub Pages (like the countdown repo)
@@ -99,6 +109,7 @@ refresh keeps the tournament.
 - `app.js` — UI controller (setup, score entry, standings)
 - `logic.js` — pure tournament logic (schedule, validation, standings), shared by browser and tests
 - `config.js` — optional `window.PADEL_DB_URL` pointing at a Firebase Realtime Database URL for live shared scoring on the static page
+- Join codes / QR invite are generated in `logic.js` (`generateJoinCode`, `hashJoinCode`); the QR image itself is rendered via a public QR image API, with the typed code as fallback
 - `server.js` — zero-dependency Node server: serves the page and a small REST API (`/api/state`, `/api/tournament`, `/api/matches/:id/score`, `/api/round`, `/api/finish`, `/api/reset`) with JSON file persistence, so multiple browsers share one live tournament
 - `test/logic.test.js` — unit tests for the logic module
 - `test/ui.smoke.test.js` — end-to-end UI flow test with a minimal fake DOM
