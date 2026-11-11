@@ -107,13 +107,7 @@ function computeSeasonRanking(results) {
 function isValidScore(score) {
   if (!score) return false;
   const { a, b } = score;
-  return (
-    Number.isInteger(a) &&
-    Number.isInteger(b) &&
-    a >= 0 &&
-    b >= 0 &&
-    a !== b
-  );
+  return Number.isInteger(a) && Number.isInteger(b) && a >= 0 && b >= 0;
 }
 
 function computeStandings(players, matches) {
@@ -130,7 +124,7 @@ function computeStandings(players, matches) {
   for (const match of matches) {
     if (!isValidScore(match.score)) continue;
     const { a, b } = match.score;
-    const winners = a > b ? 0 : 1;
+    const winners = a > b ? 0 : b > a ? 1 : null;
     for (const teamIndex of [0, 1]) {
       const teamGames = teamIndex === 0 ? a : b;
       const opponentGames = teamIndex === 0 ? b : a;
@@ -140,7 +134,7 @@ function computeStandings(players, matches) {
         s.points += teamGames;
         s.gamesFor += teamGames;
         s.gamesAgainst += opponentGames;
-        if (teamIndex === winners) s.won += 1;
+        if (winners !== null && teamIndex === winners) s.won += 1;
       }
     }
   }

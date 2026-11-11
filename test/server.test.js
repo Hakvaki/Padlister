@@ -89,7 +89,13 @@ async function main() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ a: 3, b: 3 }),
     });
-    assert.equal(res.status, 400, "tie score rejected");
+    assert.equal(res.status, 200, "tie score accepted");
+    res = await fetch(`${base}/api/matches/1/score`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ a: 2, b: -1 }),
+    });
+    assert.equal(res.status, 400, "negative score rejected");
 
     res = await fetch(`${base}/api/matches/99/score`, {
       method: "PUT",

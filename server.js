@@ -181,7 +181,7 @@ function createApp() {
       }
       const score = { a: Number(body.a), b: Number(body.b) };
       if (!isValidScore(score)) {
-        return sendJson(res, 400, { error: "Enter two different non-negative game scores." });
+        return sendJson(res, 400, { error: "Enter two non-negative integer game scores." });
       }
       match.score = score;
       saveState(state);

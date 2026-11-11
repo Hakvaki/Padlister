@@ -539,7 +539,7 @@ function buildMatchCard(match) {
   const played = isValidScore(match.score);
   const teamEls = match.teams.map((team, i) => {
     const el = document.createElement("div");
-    el.className = "team" + (played && (match.score.a > match.score.b) === (i === 0) ? " winner" : "");
+    el.className = "team" + (played && match.score.a !== match.score.b && (match.score.a > match.score.b) === (i === 0) ? " winner" : "");
     el.textContent = teamNames(team);
     return el;
   });
@@ -586,7 +586,7 @@ function buildMatchCard(match) {
   saveBtn.addEventListener("click", () => {
     const score = { a: Number(inputA.value), b: Number(inputB.value) };
     if (!isValidScore(score)) {
-      error.textContent = "Enter two different non-negative game scores.";
+      error.textContent = "Enter two non-negative game scores.";
       return;
     }
     match.score = score;
