@@ -1,0 +1,6 @@
+// Optional shared database for live multi-device scoring on the static
+// GitHub Pages build. Set PADEL_DB_URL to your Firebase Realtime Database
+// URL (see README) and commit this file; leave empty to play per-device.
+// The database URL is not a secret — access is controlled by the database
+// rules in your Firebase project.
+window.PADEL_DB_URL = "https://padlister-f87f6-default-rtdb.europe-west1.firebasedatabase.app";

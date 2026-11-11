@@ -1,4 +1,5 @@
 const STORAGE_KEY = "padelAmericano4.v1";
+const POLL_INTERVAL_MS = 2000;
 
 const setupPanel = document.getElementById("setup-panel");
 const tournamentPanel = document.getElementById("tournament-panel");
@@ -11,15 +12,110 @@ const tournamentStatus = document.getElementById("tournament-status");
 const resetBtn = document.getElementById("reset-btn");
 
 let state = null;
+let pollTimer = null;
+
+function isBrowser() {
+  return typeof window !== "undefined" && typeof fetch === "function";
+}
+
+function dbUrl() {
+  return (typeof window !== "undefined" && window.PADEL_DB_URL) || "";
+}
+
+function canonical(value) {
+  if (Array.isArray(value)) return "[" + value.map(canonical).join(",") + "]";
+  if (value && typeof value === "object") {
+    return "{" + Object.keys(value).sort().map((k) => JSON.stringify(k) + ":" + canonical(value[k])).join(",") + "}";
+  }
+  return JSON.stringify(value);
+}
+
+function isValidState(parsed) {
+  return (
+    parsed !== null &&
+    typeof parsed === "object" &&
+    Array.isArray(parsed.players) &&
+    parsed.players.length === 4 &&
+    Array.isArray(parsed.matches) &&
+    parsed.matches.length === 3
+  );
+}
+
+function normalizeState(parsed) {
+  if (!isValidState(parsed)) return null;
+  return {
+    players: parsed.players,
+    matches: parsed.matches.map((m) => ({ ...m, score: m.score || null })),
+  };
+}
+
+async function fetchSharedState() {
+  if (dbUrl()) {
+    const res = await fetch(`${dbUrl()}/tournament.json`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`Database read failed (${res.status})`);
+    const text = await res.text();
+    return normalizeState(text && text !== "null" ? JSON.parse(text) : null);
+  }
+  return api("api/state");
+}
+
+async function publish(action, payload) {
+  if (dbUrl()) {
+    const url = `${dbUrl()}/tournament.json`;
+    if (action === "reset") {
+      const res = await fetch(url, { method: "DELETE" });
+      if (!res.ok) throw new Error(`Database reset failed (${res.status})`);
+      return;
+    }
+    const res = await fetch(url, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(state),
+    });
+    if (!res.ok) throw new Error(`Database write failed (${res.status})`);
+    return;
+  }
+  if (action === "tournament") {
+    return api("api/tournament", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ players: payload }),
+    });
+  }
+  if (action === "score") {
+    return api(`api/matches/${payload.id}/score`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload.score),
+    });
+  }
+  if (action === "reset") {
+    return api("api/reset", { method: "POST" });
+  }
+}
+
+async function api(path, options) {
+  const res = await fetch(path, options);
+  if (!res.ok) {
+    const err = new Error(`Request failed (${res.status})`);
+    err.status = res.status;
+    try {
+      const data = await res.json();
+      if (data && data.error) err.message = data.error;
+    } catch {
+      // keep generic message
+    }
+    throw err;
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
 
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed.players) || parsed.players.length !== 4) return null;
-    if (!Array.isArray(parsed.matches) || parsed.matches.length !== 3) return null;
-    return parsed;
+    return normalizeState(JSON.parse(raw));
   } catch {
     return null;
   }
@@ -33,6 +129,48 @@ function startTournament(players) {
   state = { players, matches: generateSchedule(4) };
   saveState();
   render();
+  if (isBrowser()) {
+    publish("tournament", players).catch((err) => {
+      if (err && err.status === 409) syncShared();
+    });
+  }
+}
+
+async function syncShared() {
+  if (!isBrowser()) return;
+  try {
+    const incoming = await fetchSharedState();
+    if (incoming && canonical(incoming) !== canonical(state)) {
+      state = incoming;
+      saveState();
+      renderPreservingFocus();
+    } else if (!incoming && state !== null) {
+      state = null;
+      saveState();
+      renderPreservingFocus();
+    }
+  } catch {
+    // offline: keep local state
+  }
+}
+
+function renderPreservingFocus() {
+  const active = typeof document !== "undefined" ? document.activeElement : null;
+  const label = active && typeof active.getAttribute === "function" ? active.getAttribute("aria-label") : null;
+  const value = active ? active.value : null;
+  render();
+  if (label && typeof document.querySelector === "function") {
+    const next = document.querySelector(`input[aria-label="${label}"]`);
+    if (next) {
+      next.value = value;
+      next.focus();
+    }
+  }
+}
+
+function startPolling() {
+  if (!isBrowser() || pollTimer !== null) return;
+  pollTimer = setInterval(syncShared, POLL_INTERVAL_MS);
 }
 
 function teamNames(team) {
@@ -151,6 +289,11 @@ function buildMatchCard(match) {
     match.score = score;
     saveState();
     render();
+    if (isBrowser()) {
+      publish("score", { id: match.id, score }).catch((err) => {
+        if (err && err.status === 404) syncShared();
+      });
+    }
   });
 
   row.append(inputA, dash, inputB, saveBtn, error);
@@ -186,7 +329,14 @@ resetBtn.addEventListener("click", () => {
   state = null;
   setupForm.reset();
   render();
+  if (isBrowser()) {
+    publish("reset").catch(() => {});
+  }
 });
 
 state = loadState();
 render();
+if (isBrowser()) {
+  syncShared();
+  startPolling();
+}
