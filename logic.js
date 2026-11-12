@@ -85,9 +85,15 @@ async function sealResult(result) {
   return sealed;
 }
 
+function effectiveResults(results) {
+  const superseded = new Set();
+  for (const r of results) if (r.supersedes) superseded.add(r.supersedes);
+  return results.filter((r) => !r.void && !superseded.has(r.id));
+}
+
 function computeSeasonRanking(results) {
   const byName = new Map();
-  for (const r of results) {
+  for (const r of effectiveResults(results)) {
     for (const s of r.standings || []) {
       const entry = byName.get(s.name) || { name: s.name, tournaments: 0, wins: 0, points: 0, played: 0 };
       entry.tournaments += 1;
@@ -154,5 +160,5 @@ function isTournamentComplete(matches) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { generateSchedule, createMatch, isValidMode, isValidScore, computeStandings, isTournamentComplete, generateJoinCode, hashJoinCode, sha256Hex, buildResult, sealResult, computeSeasonRanking, PAIRINGS };
+  module.exports = { generateSchedule, createMatch, isValidMode, isValidScore, computeStandings, isTournamentComplete, generateJoinCode, hashJoinCode, sha256Hex, buildResult, sealResult, computeSeasonRanking, effectiveResults, PAIRINGS };
 }

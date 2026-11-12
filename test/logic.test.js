@@ -204,6 +204,12 @@ async function testResultSealingAndRanking() {
   assert.equal(ranking[0].tournaments, 2);
   assert.equal(ranking[0].wins, 2);
   assert.equal(ranking[0].points, 26);
+
+  const withId = { ...sealed, id: "abc" };
+  const tombstone = { ...r2, id: "def", void: true, supersedes: "abc" };
+  const afterVoid = computeSeasonRanking([withId, { ...r2, id: "xyz" }, tombstone]);
+  assert.equal(afterVoid[0].tournaments, 1, "superseded result is excluded from the ranking");
+  assert.equal(afterVoid[0].points, 13);
 }
 
 testJoinCodeGeneration();
