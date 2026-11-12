@@ -436,3 +436,11 @@ input:focus {
 .history-empty {
   color: var(--muted);
 }
+
+.history-item.voided {
+  opacity: 0.55;
+}
+
+.history-item .btn.small {
+  margin-top: 0.4rem;
+}

@@ -56,7 +56,8 @@ function testEachPlayerPartnersWithEveryoneOnce() {
 function testScoreValidation() {
   assert.ok(isValidScore({ a: 4, b: 2 }));
   assert.ok(isValidScore({ a: 0, b: 1 }));
-  assert.ok(!isValidScore({ a: 3, b: 3 }));
+  assert.ok(isValidScore({ a: 3, b: 3 }), "ties are allowed");
+  assert.ok(isValidScore({ a: 8, b: 8 }));
   assert.ok(!isValidScore({ a: -1, b: 2 }));
   assert.ok(!isValidScore({ a: 1.5, b: 0 }));
   assert.ok(!isValidScore(null));
@@ -104,6 +105,16 @@ function testStandingsTieBreaksDeterministically() {
     assert.equal(s.played, 3);
   }
   assert.equal(standings[3].points, 4);
+}
+
+function testStandingsHandleTies() {
+  const matches = generateSchedule(4);
+  matches[0].score = { a: 8, b: 8 };
+  const standings = computeStandings(PLAYERS, matches);
+  for (const s of standings) {
+    assert.equal(s.points, 8, "both teams get their games as points on a tie");
+    assert.equal(s.won, 0, "a tie gives no match win to either side");
+  }
 }
 
 function testStandingsIgnoreUnplayedMatches() {
@@ -163,6 +174,7 @@ async function testJoinCodeHash() {
 testScheduleShape();
 testCreateMatchCyclesPairings();
 testModeValidation();
+testStandingsHandleTies();
 async function testResultSealingAndRanking() {
   assert.equal(await sha256Hex("abc"), nodeCrypto.createHash("sha256").update("abc").digest("hex"));
 
@@ -192,6 +204,12 @@ async function testResultSealingAndRanking() {
   assert.equal(ranking[0].tournaments, 2);
   assert.equal(ranking[0].wins, 2);
   assert.equal(ranking[0].points, 26);
+
+  const withId = { ...sealed, id: "abc" };
+  const tombstone = { ...r2, id: "def", void: true, supersedes: "abc" };
+  const afterVoid = computeSeasonRanking([withId, { ...r2, id: "xyz" }, tombstone]);
+  assert.equal(afterVoid[0].tournaments, 1, "superseded result is excluded from the ranking");
+  assert.equal(afterVoid[0].points, 13);
 }
 
 testJoinCodeGeneration();

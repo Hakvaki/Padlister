@@ -180,6 +180,23 @@ async function archiveResult(result) {
   });
 }
 
+async function voidResult(id) {
+  const original = (historyCache || []).find((r) => r.id === id);
+  const tombstone = {
+    endedAt: new Date().toISOString(),
+    mode: original ? original.mode : "classic",
+    players: [],
+    matches: [],
+    standings: [],
+    winner: "",
+    void: true,
+    supersedes: id,
+  };
+  await archiveResult(tombstone);
+  historyCache = null;
+  render();
+}
+
 async function maybeArchive() {
   if (!isBrowser() || !state || state.resultArchived) return;
   const done = state.mode === "endless" ? state.finished : isTournamentComplete(state.matches);
@@ -451,20 +468,32 @@ function renderHistory() {
     historyList.appendChild(p);
     return;
   }
+  const superseded = new Set();
+  for (const r of sorted) if (r.supersedes) superseded.add(r.supersedes);
   for (const r of sorted) {
     const div = document.createElement("div");
-    div.className = "history-item";
+    div.className = "history-item" + (r.void || superseded.has(r.id) ? " voided" : "");
     const date = r.endedAt ? new Date(r.endedAt).toLocaleString() : "";
     const scoreLine = (r.standings || []).map((s) => `${s.name} ${s.points}`).join(" · ");
-    div.innerHTML = "";
     const main = document.createElement("div");
     const winner = document.createElement("span");
     winner.className = "winner";
-    winner.textContent = `🏆 ${r.winner}`;
+    winner.textContent = r.void ? "Voided" : `🏆 ${r.winner}`;
     main.append(winner, document.createTextNode(` — ${r.mode === "endless" ? "Endless" : "Classic"} · ${date}`));
+    if (r.void) main.append(document.createTextNode(" (correction entry)"));
+    else if (superseded.has(r.id)) main.append(document.createTextNode(" (superseded)"));
     const sub = document.createElement("div");
     sub.textContent = scoreLine;
     div.append(main, sub);
+    if (isHost && !r.void && !superseded.has(r.id)) {
+      const btn = document.createElement("button");
+      btn.className = "btn small";
+      btn.textContent = "Void result";
+      btn.addEventListener("click", () => {
+        voidResult(r.id).catch(() => {});
+      });
+      div.appendChild(btn);
+    }
     historyList.appendChild(div);
   }
 }
@@ -539,7 +568,7 @@ function buildMatchCard(match) {
   const played = isValidScore(match.score);
   const teamEls = match.teams.map((team, i) => {
     const el = document.createElement("div");
-    el.className = "team" + (played && (match.score.a > match.score.b) === (i === 0) ? " winner" : "");
+    el.className = "team" + (played && match.score.a !== match.score.b && (match.score.a > match.score.b) === (i === 0) ? " winner" : "");
     el.textContent = teamNames(team);
     return el;
   });
@@ -586,7 +615,7 @@ function buildMatchCard(match) {
   saveBtn.addEventListener("click", () => {
     const score = { a: Number(inputA.value), b: Number(inputB.value) };
     if (!isValidScore(score)) {
-      error.textContent = "Enter two different non-negative game scores.";
+      error.textContent = "Enter two non-negative game scores.";
       return;
     }
     match.score = score;
