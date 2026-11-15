@@ -89,6 +89,12 @@ never be modified or deleted (`!data.exists()`), so the log is append-only.
 The local `server.js` keeps its own append-only log in `data/results.jsonl`
 (`GET/POST /api/results`).
 
+**Correcting a mistake:** because nothing can be edited, corrections are
+appended too — the host can press "Void result" on an entry in the History
+view, which appends a tombstone entry (`void: true, supersedes: <id>`). The
+original entry stays in the log (audit trail intact), and the season ranking
+ignores voided/superseded entries.
+
 ## Navigating between views
 
 Views are also reachable by URL hash, so they can be shared or bookmarked:
