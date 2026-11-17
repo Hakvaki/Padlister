@@ -4,7 +4,10 @@ A zero-dependency web app for a classic 4-player Americano padel tournament.
 
 ## Format
 
-With four players there are exactly three possible pairings:
+The app supports **4–16 players and 1–4 courts**. Each round, players are
+rotated into 2v2 matches dealt onto the courts; if the player count doesn't
+fill every court, the leftover players rest that round (shown in the round
+header). With exactly 4 players on 1 court, the classic pairings are used:
 
 | Round | Team 1 | Team 2 |
 |-------|--------|--------|
@@ -14,10 +17,10 @@ With four players there are exactly three possible pairings:
 
 Two modes are available at setup:
 
-- **Classic** — the three rounds above, everyone partners everyone exactly
-  once. The tournament is complete when all three matches have scores.
-- **Endless** — rounds keep cycling through the same three pairings; tap
-  "Add round" after each match and "End game" when you're done. The current
+- **Classic** — three rounds; with 4 players everyone partners everyone
+  exactly once. The tournament is complete when all matches have scores.
+- **Endless** — rounds keep being generated (pairings rotate); tap
+  "Add round" after each round and "End game" when you're done. The current
   score is always visible.
 
 Points are the games your team wins in each match, accumulated across all

@@ -8,6 +8,10 @@ const {
   isTournamentComplete,
   generateJoinCode,
   hashJoinCode,
+  generateRound,
+  generateRounds,
+  isValidPlayerCount,
+  isValidCourtCount,
   sha256Hex,
   buildResult,
   sealResult,
@@ -171,10 +175,36 @@ async function testJoinCodeHash() {
   assert.notEqual(await hashJoinCode("ABC124"), hash);
 }
 
+function testGenerateRoundMultiCourt() {
+  const r0 = generateRound(8, 0, 2);
+  assert.equal(r0.matches.length, 2, "8 players on 2 courts = 2 matches");
+  assert.equal(r0.resting.length, 0);
+  assert.equal(r0.matches[0].court, 1);
+  assert.equal(r0.matches[1].court, 2);
+  const allIdx = r0.matches.flatMap((m) => m.teams.flat());
+  assert.deepEqual([...allIdx].sort((a, b) => a - b), [0, 1, 2, 3, 4, 5, 6, 7], "every player is in exactly one match");
+
+  const r6 = generateRound(6, 0, 2);
+  assert.equal(r6.matches.length, 1, "6 players can only fill one court");
+  assert.equal(r6.resting.length, 2, "remaining players rest");
+
+  const r1 = generateRound(8, 1, 2);
+  assert.notDeepEqual(r1.matches[0].teams, r0.matches[0].teams, "rotation changes pairings between rounds");
+  assert.equal(generateRounds(8, 2, 3).length, 6, "3 rounds on 2 courts = 6 matches");
+
+  assert.ok(!isValidPlayerCount(3));
+  assert.ok(isValidPlayerCount(16));
+  assert.ok(!isValidPlayerCount(17));
+  assert.ok(isValidCourtCount(4));
+  assert.ok(!isValidCourtCount(5));
+  assert.throws(() => generateRound(8, 0, 5));
+}
+
 testScheduleShape();
 testCreateMatchCyclesPairings();
 testModeValidation();
 testStandingsHandleTies();
+testGenerateRoundMultiCourt();
 async function testResultSealingAndRanking() {
   assert.equal(await sha256Hex("abc"), nodeCrypto.createHash("sha256").update("abc").digest("hex"));
 

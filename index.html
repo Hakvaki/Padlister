@@ -17,12 +17,33 @@
       <h2>Set up your game</h2>
       <p class="hint">Enter the four player names. The three classic Americano pairings are generated automatically. Serve this page with <code>node server.js</code> and share the address so everyone in the session sees the same live tournament.</p>
       <form id="setup-form">
-        <div class="name-inputs">
-          <input type="text" name="player0" maxlength="20" placeholder="Player 1" required />
-          <input type="text" name="player1" maxlength="20" placeholder="Player 2" required />
-          <input type="text" name="player2" maxlength="20" placeholder="Player 3" required />
-          <input type="text" name="player3" maxlength="20" placeholder="Player 4" required />
+        <div class="name-inputs" id="name-inputs">
+          <div class="player-row">
+            <input type="text" name="player0" maxlength="20" placeholder="Player 1" required />
+            <button type="button" class="btn small remove-player-btn" aria-label="Remove player">&times;</button>
+          </div>
+          <div class="player-row">
+            <input type="text" name="player1" maxlength="20" placeholder="Player 2" required />
+            <button type="button" class="btn small remove-player-btn" aria-label="Remove player">&times;</button>
+          </div>
+          <div class="player-row">
+            <input type="text" name="player2" maxlength="20" placeholder="Player 3" required />
+            <button type="button" class="btn small remove-player-btn" aria-label="Remove player">&times;</button>
+          </div>
+          <div class="player-row">
+            <input type="text" name="player3" maxlength="20" placeholder="Player 4" required />
+            <button type="button" class="btn small remove-player-btn" aria-label="Remove player">&times;</button>
+          </div>
         </div>
+        <button type="button" id="add-player-btn" class="btn small">+ Add player</button>
+        <label class="courts-picker">Courts
+          <select name="courts" id="courts-select">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+          </select>
+        </label>
         <div class="mode-picker">
           <label><input type="radio" name="mode" value="classic" checked /> Classic &mdash; 3 rounds, everyone partners everyone</label>
           <label><input type="radio" name="mode" value="endless" /> Endless &mdash; rounds keep coming until you end the game</label>

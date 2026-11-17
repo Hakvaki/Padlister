@@ -31,6 +31,55 @@ function isValidMode(mode) {
   return mode === "classic" || mode === "endless";
 }
 
+const MIN_PLAYERS = 4;
+const MAX_PLAYERS = 16;
+const MAX_COURTS = 4;
+const PLAYERS_PER_MATCH = 4;
+
+function isValidPlayerCount(n) {
+  return Number.isInteger(n) && n >= MIN_PLAYERS && n <= MAX_PLAYERS;
+}
+
+function isValidCourtCount(c) {
+  return Number.isInteger(c) && c >= 1 && c <= MAX_COURTS;
+}
+
+// One round: rotate the player lineup, deal groups of 4 onto courts.
+// Players beyond courts*4 rest this round. Deterministic per roundIndex.
+function generateRound(playerCount, roundIndex, courts) {
+  if (!isValidPlayerCount(playerCount)) throw new Error("playerCount must be 4..16");
+  if (!isValidCourtCount(courts)) throw new Error("courts must be 1..4");
+  if (!Number.isInteger(roundIndex) || roundIndex < 0) throw new Error("roundIndex must be an integer >= 0");
+  const idx = Array.from({ length: playerCount }, (_, i) => i);
+  const rotated = idx.map((_, i) => idx[(i + roundIndex * 2) % playerCount]);
+  const matches = [];
+  for (let c = 0; c < courts && (c + 1) * PLAYERS_PER_MATCH <= playerCount; c++) {
+    let teams;
+    if (playerCount === 4 && courts === 1) {
+      teams = PAIRINGS[roundIndex % PAIRINGS.length].map((t) => [...t]);
+    } else {
+      const group = rotated.slice(c * PLAYERS_PER_MATCH, (c + 1) * PLAYERS_PER_MATCH);
+      const off = roundIndex % 3;
+      const order = [group[0], group[(1 + off) % 4], group[(2 + off) % 4], group[(3 + off) % 4]];
+      teams = [order.slice(0, 2), order.slice(2, 4)];
+    }
+    matches.push({
+      id: roundIndex * courts + c + 1,
+      round: roundIndex + 1,
+      court: c + 1,
+      teams,
+      score: null,
+    });
+  }
+  return { matches, resting: rotated.slice(matches.length * PLAYERS_PER_MATCH) };
+}
+
+function generateRounds(playerCount, courts, roundCount) {
+  const all = [];
+  for (let r = 0; r < roundCount; r++) all.push(...generateRound(playerCount, r, courts).matches);
+  return all;
+}
+
 const JOIN_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 
 function generateJoinCode(length = 6) {
@@ -160,5 +209,5 @@ function isTournamentComplete(matches) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { generateSchedule, createMatch, isValidMode, isValidScore, computeStandings, isTournamentComplete, generateJoinCode, hashJoinCode, sha256Hex, buildResult, sealResult, computeSeasonRanking, effectiveResults, PAIRINGS };
+  module.exports = { generateSchedule, createMatch, generateRound, generateRounds, isValidMode, isValidPlayerCount, isValidCourtCount, isValidScore, computeStandings, isTournamentComplete, generateJoinCode, hashJoinCode, sha256Hex, buildResult, sealResult, computeSeasonRanking, effectiveResults, MIN_PLAYERS, MAX_PLAYERS, MAX_COURTS, PAIRINGS };
 }

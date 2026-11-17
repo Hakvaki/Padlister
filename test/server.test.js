@@ -184,6 +184,21 @@ async function main() {
     res = await fetch(`${base}/api/reset`, { method: "POST" });
     assert.equal(res.status, 200);
 
+    res = await fetch(`${base}/api/tournament`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ players: ["P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8"], courts: 2, mode: "endless" }),
+    });
+    assert.equal(res.status, 200);
+    const multi = await res.json();
+    assert.equal(multi.matches.length, 2, "8 players on 2 courts start with 2 matches");
+    assert.equal(multi.matches[1].court, 2);
+    res = await fetch(`${base}/api/round`, { method: "POST" });
+    const multi2 = await res.json();
+    assert.equal(multi2.matches.length, 4, "next endless round adds 2 more matches");
+    assert.equal(multi2.matches[2].round, 2);
+    await fetch(`${base}/api/reset`, { method: "POST" });
+
     process.env.PADEL_HOST_CODE_HASH = "host-hash-123";
     res = await fetch(`${base}/api/tournament`, {
       method: "POST",
