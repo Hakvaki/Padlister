@@ -12,6 +12,7 @@ const {
   generateRounds,
   isValidPlayerCount,
   isValidCourtCount,
+  isValidSinglesCount,
   sha256Hex,
   buildResult,
   sealResult,
@@ -198,6 +199,22 @@ function testGenerateRoundMultiCourt() {
   assert.ok(isValidCourtCount(20));
   assert.ok(!isValidCourtCount(101));
   assert.throws(() => generateRound(8, 0, 101));
+
+  const mixed = generateRound(6, 0, 2, 1);
+  assert.equal(mixed.matches.length, 2);
+  assert.equal(mixed.matches[0].singles, true, "first court plays 1v1");
+  assert.equal(mixed.matches[0].teams.flat().length, 2);
+  assert.equal(mixed.matches[1].singles, false, "second court plays 2v2");
+  assert.equal(mixed.matches[1].teams.flat().length, 4);
+  assert.equal(mixed.resting.length, 0);
+
+  const mixedRest = generateRound(7, 0, 2, 1);
+  assert.equal(mixedRest.matches.length, 2);
+  assert.equal(mixedRest.resting.length, 1, "one player rests");
+
+  assert.ok(isValidSinglesCount(2, 2));
+  assert.ok(!isValidSinglesCount(3, 2));
+  assert.throws(() => generateRound(6, 0, 2, 3));
 }
 
 testScheduleShape();

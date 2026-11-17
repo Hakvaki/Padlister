@@ -1,7 +1,7 @@
 const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
-const { generateRound, generateRounds, isValidMode, isValidPlayerCount, isValidCourtCount, isValidScore, MIN_PLAYERS, MAX_PLAYERS, MAX_COURTS } = require("./logic.js");
+const { generateRound, generateRounds, isValidMode, isValidPlayerCount, isValidCourtCount, isValidSinglesCount, isValidScore, MIN_PLAYERS, MAX_PLAYERS, MAX_COURTS } = require("./logic.js");
 
 const ROOT = __dirname;
 const DATA_FILE = process.env.PADEL_DATA_FILE || path.join(ROOT, "data", "tournament.json");
@@ -24,6 +24,7 @@ function loadState() {
     if (!Array.isArray(parsed.matches)) return null;
     if (parsed.mode !== undefined && !isValidMode(parsed.mode)) return null;
     if (parsed.courts !== undefined && !isValidCourtCount(parsed.courts)) return null;
+    if (parsed.singles !== undefined && !isValidSinglesCount(parsed.singles, parsed.courts || 1)) return null;
     return parsed;
   } catch {
     return null;
@@ -139,14 +140,19 @@ function createApp() {
       if (!isValidCourtCount(courts)) {
         return sendJson(res, 400, { error: `courts must be an integer between 1 and ${MAX_COURTS}.` });
       }
+      const singles = body.singles === undefined ? 0 : Number(body.singles);
+      if (!isValidSinglesCount(singles, courts)) {
+        return sendJson(res, 400, { error: `singles must be an integer between 0 and courts (${courts}).` });
+      }
       const codeHash = typeof body.codeHash === "string" && body.codeHash.length <= 128 ? body.codeHash : null;
       const state = {
         players,
         mode,
         courts,
+        singles,
         finished: false,
         codeHash,
-        matches: mode === "endless" ? generateRound(players.length, 0, courts).matches : generateRounds(players.length, courts, 3),
+        matches: mode === "endless" ? generateRound(players.length, 0, courts, singles).matches : generateRounds(players.length, courts, 3, singles),
       };
       saveState(state);
       return sendJson(res, 200, state);
@@ -161,7 +167,7 @@ function createApp() {
       if (state.finished) return sendJson(res, 400, { error: "The game is already finished." });
       const courts = state.courts || 1;
       const nextRound = state.matches.length ? Math.max(...state.matches.map((m) => m.round)) : 0;
-      state.matches.push(...generateRound(state.players.length, nextRound, courts).matches);
+      state.matches.push(...generateRound(state.players.length, nextRound, courts, state.singles || 0).matches);
       saveState(state);
       return sendJson(res, 200, state);
     }

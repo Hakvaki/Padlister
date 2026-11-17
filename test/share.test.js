@@ -77,16 +77,17 @@ for (const id of [
   "host-panel", "qr-img", "join-code", "join-url", "host-continue-btn", "invite-btn",
   "gate-panel", "gate-form", "gate-code", "gate-error", "gate-scoreboard-btn",
   "history-btn", "history-panel", "history-ranking", "history-list", "history-back-btn",
-  "name-inputs", "add-player-btn", "courts-select",
+  "name-inputs", "add-player-btn", "courts-select", "singles-select",
 ]) {
   elements[id] = new FakeElement("div");
 }
 const formInputs = {};
-for (const name of ["player0", "player1", "player2", "player3", "hostCode", "courts"]) {
+for (const name of ["player0", "player1", "player2", "player3", "hostCode", "courts", "singles"]) {
   formInputs[name] = new FakeElement("input");
   formInputs[name].name = name;
 }
 formInputs["courts"].value = "1";
+formInputs["singles"].value = "0";
 elements["setup-form"].elements = formInputs;
 elements["setup-form"].reset = () => { for (const i of Object.values(formInputs)) i.value = ""; };
 
@@ -122,6 +123,7 @@ async function main() {
     names.forEach((n, i) => { formInputs[`player${i}`].value = n; });
     formInputs["hostCode"].value = hostCode;
     formInputs["courts"].value = "1";
+    formInputs["singles"].value = "0";
     elements["setup-form"].dispatch("submit", { preventDefault() {} });
   };
 

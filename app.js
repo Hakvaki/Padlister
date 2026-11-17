@@ -40,6 +40,7 @@ const historyBackBtn = document.getElementById("history-back-btn");
 const nameInputs = document.getElementById("name-inputs");
 const addPlayerBtn = document.getElementById("add-player-btn");
 const courtsSelect = document.getElementById("courts-select");
+const singlesSelect = document.getElementById("singles-select");
 
 let state = null;
 let pollTimer = null;
@@ -134,6 +135,7 @@ function normalizeState(parsed) {
     codeHash: typeof parsed.codeHash === "string" ? parsed.codeHash : null,
     resultArchived: Boolean(parsed.resultArchived),
     courts: isValidCourtCount(parsed.courts) ? parsed.courts : 1,
+    singles: isValidSinglesCount(parsed.singles, isValidCourtCount(parsed.courts) ? parsed.courts : 1) ? parsed.singles : 0,
     matches: parsed.matches.map((m) => ({ ...m, score: m.score || null })),
   };
 }
@@ -235,7 +237,7 @@ async function publish(action, payload) {
     return api("api/tournament", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ players: payload.players, mode: payload.mode, courts: payload.courts || 1, codeHash: payload.codeHash || null, hostCodeHash: payload.hostCodeHash || null }),
+      body: JSON.stringify({ players: payload.players, mode: payload.mode, courts: payload.courts || 1, singles: payload.singles || 0, codeHash: payload.codeHash || null, hostCodeHash: payload.hostCodeHash || null }),
     });
   }
   if (action === "round") {
@@ -287,7 +289,7 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
-function startTournament(players, mode, courts, hostCodeHash) {
+function startTournament(players, mode, courts, singles, hostCodeHash) {
   const code = generateJoinCode();
   localStorage.setItem(UNLOCK_KEY, code);
   unlocked = true;
@@ -296,9 +298,10 @@ function startTournament(players, mode, courts, hostCodeHash) {
     players,
     mode,
     courts,
+    singles,
     finished: false,
     codeHash: null,
-    matches: mode === "endless" ? generateRound(players.length, 0, courts).matches : generateRounds(players.length, courts, 3),
+    matches: mode === "endless" ? generateRound(players.length, 0, courts, singles).matches : generateRounds(players.length, courts, 3, singles),
   };
   saveState();
   render();
@@ -308,7 +311,7 @@ function startTournament(players, mode, courts, hostCodeHash) {
     saveState();
     render();
     if (isBrowser()) {
-      publish("tournament", { players, mode, courts, codeHash, hostCodeHash }).catch((err) => {
+      publish("tournament", { players, mode, courts, singles, codeHash, hostCodeHash }).catch((err) => {
         if (err && err.status === 409) syncShared();
       });
     }
@@ -554,7 +557,7 @@ function renderStandings() {
 }
 
 function restingFor(round) {
-  return generateRound(state.players.length, round - 1, state.courts || 1).resting;
+  return generateRound(state.players.length, round - 1, state.courts || 1, state.singles || 0).resting;
 }
 
 function renderMatches() {
@@ -582,7 +585,7 @@ function buildMatchCard(match) {
 
   const title = document.createElement("div");
   title.className = "match-title";
-  title.textContent = `Round ${match.round} · Court ${match.court || 1}`;
+  title.textContent = `Round ${match.round} · Court ${match.court || 1}${match.singles ? " · 1v1" : ""}`;
   card.appendChild(title);
 
   const teams = document.createElement("div");
@@ -728,6 +731,13 @@ setupForm.addEventListener("submit", async (event) => {
     setupError.classList.remove("hidden");
     return;
   }
+  const singlesEl = setupForm.elements["singles"] || singlesSelect;
+  const singles = Number(singlesEl ? singlesEl.value : 0);
+  if (!isValidSinglesCount(singles, courts)) {
+    setupError.textContent = `1v1 courts must be between 0 and the number of courts (${courts}).`;
+    setupError.classList.remove("hidden");
+    return;
+  }
 
   let hostCodeHash = null;
   if (hostHashConfigured()) {
@@ -745,7 +755,7 @@ setupForm.addEventListener("submit", async (event) => {
   setupError.classList.add("hidden");
   const modeRadio = setupForm.elements["mode"];
   const mode = modeRadio && modeRadio.value === "endless" ? "endless" : "classic";
-  startTournament(players, mode, courts, hostCodeHash);
+  startTournament(players, mode, courts, singles, hostCodeHash);
 });
 
 scoreboardBtn.addEventListener("click", () => {
@@ -801,7 +811,7 @@ backBtn.addEventListener("click", () => {
 addRoundBtn.addEventListener("click", () => {
   if (!state || state.mode !== "endless" || state.finished) return;
   const nextRound = state.matches.length ? Math.max(...state.matches.map((m) => m.round)) : 0;
-  state.matches.push(...generateRound(state.players.length, nextRound, state.courts || 1).matches);
+  state.matches.push(...generateRound(state.players.length, nextRound, state.courts || 1, state.singles || 0).matches);
   saveState();
   render();
   if (isBrowser()) {
