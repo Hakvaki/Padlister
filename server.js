@@ -1,7 +1,7 @@
 const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
-const { generateRound, generateRounds, isValidMode, isValidPlayerCount, isValidCourtCount, isValidScore } = require("./logic.js");
+const { generateRound, generateRounds, isValidMode, isValidPlayerCount, isValidCourtCount, isValidScore, MIN_PLAYERS, MAX_PLAYERS, MAX_COURTS } = require("./logic.js");
 
 const ROOT = __dirname;
 const DATA_FILE = process.env.PADEL_DATA_FILE || path.join(ROOT, "data", "tournament.json");
@@ -47,7 +47,7 @@ function clearState() {
 
 function validatePlayers(players) {
   if (!Array.isArray(players) || !isValidPlayerCount(players.length)) {
-    return "Between 4 and 16 player names are required.";
+    return `Between ${MIN_PLAYERS} and ${MAX_PLAYERS} player names are required.`;
   }
   if (players.some((p) => typeof p !== "string" || p.trim().length === 0)) {
     return "All four player names are required.";
@@ -137,7 +137,7 @@ function createApp() {
       }
       const courts = body.courts === undefined ? 1 : Number(body.courts);
       if (!isValidCourtCount(courts)) {
-        return sendJson(res, 400, { error: "courts must be an integer between 1 and 4." });
+        return sendJson(res, 400, { error: `courts must be an integer between 1 and ${MAX_COURTS}.` });
       }
       const codeHash = typeof body.codeHash === "string" && body.codeHash.length <= 128 ? body.codeHash : null;
       const state = {

@@ -37,12 +37,7 @@
         </div>
         <button type="button" id="add-player-btn" class="btn small">+ Add player</button>
         <label class="courts-picker">Courts
-          <select name="courts" id="courts-select">
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-          </select>
+          <input type="number" name="courts" id="courts-select" min="1" max="100" value="1" />
         </label>
         <div class="mode-picker">
           <label><input type="radio" name="mode" value="classic" checked /> Classic &mdash; 3 rounds, everyone partners everyone</label>

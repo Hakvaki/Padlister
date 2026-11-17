@@ -4,7 +4,8 @@ A zero-dependency web app for a classic 4-player Americano padel tournament.
 
 ## Format
 
-The app supports **4–16 players and 1–4 courts**. Each round, players are
+The app supports **4–100 players and 1–100 courts** (generous sanity caps — the
+round generator itself works for any size). Each round, players are
 rotated into 2v2 matches dealt onto the courts; if the player count doesn't
 fill every court, the leftover players rest that round (shown in the round
 header). With exactly 4 players on 1 court, the classic pairings are used:

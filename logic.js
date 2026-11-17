@@ -32,8 +32,8 @@ function isValidMode(mode) {
 }
 
 const MIN_PLAYERS = 4;
-const MAX_PLAYERS = 16;
-const MAX_COURTS = 4;
+const MAX_PLAYERS = 100;
+const MAX_COURTS = 100;
 const PLAYERS_PER_MATCH = 4;
 
 function isValidPlayerCount(n) {

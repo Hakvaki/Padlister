@@ -193,11 +193,11 @@ function testGenerateRoundMultiCourt() {
   assert.equal(generateRounds(8, 2, 3).length, 6, "3 rounds on 2 courts = 6 matches");
 
   assert.ok(!isValidPlayerCount(3));
-  assert.ok(isValidPlayerCount(16));
-  assert.ok(!isValidPlayerCount(17));
-  assert.ok(isValidCourtCount(4));
-  assert.ok(!isValidCourtCount(5));
-  assert.throws(() => generateRound(8, 0, 5));
+  assert.ok(isValidPlayerCount(100));
+  assert.ok(!isValidPlayerCount(101));
+  assert.ok(isValidCourtCount(20));
+  assert.ok(!isValidCourtCount(101));
+  assert.throws(() => generateRound(8, 0, 101));
 }
 
 testScheduleShape();
