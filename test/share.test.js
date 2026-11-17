@@ -77,13 +77,17 @@ for (const id of [
   "host-panel", "qr-img", "join-code", "join-url", "host-continue-btn", "invite-btn",
   "gate-panel", "gate-form", "gate-code", "gate-error", "gate-scoreboard-btn",
   "history-btn", "history-panel", "history-ranking", "history-list", "history-back-btn",
+  "name-inputs", "add-player-btn", "courts-select", "singles-select",
 ]) {
   elements[id] = new FakeElement("div");
 }
 const formInputs = {};
-for (const name of ["player0", "player1", "player2", "player3", "hostCode"]) {
+for (const name of ["player0", "player1", "player2", "player3", "hostCode", "courts", "singles"]) {
   formInputs[name] = new FakeElement("input");
+  formInputs[name].name = name;
 }
+formInputs["courts"].value = "1";
+formInputs["singles"].value = "0";
 elements["setup-form"].elements = formInputs;
 elements["setup-form"].reset = () => { for (const i of Object.values(formInputs)) i.value = ""; };
 
@@ -118,6 +122,8 @@ async function main() {
   const submitNames = (names, hostCode = "secret1") => {
     names.forEach((n, i) => { formInputs[`player${i}`].value = n; });
     formInputs["hostCode"].value = hostCode;
+    formInputs["courts"].value = "1";
+    formInputs["singles"].value = "0";
     elements["setup-form"].dispatch("submit", { preventDefault() {} });
   };
 
@@ -129,7 +135,7 @@ async function main() {
   await settle();
   assert.equal(dbValue, null, "missing host code rejected too");
   const saveScore = (matchIndex, a, b) => {
-    const card = elements["matches-list"].children[matchIndex];
+    const card = elements["matches-list"].children.filter((c) => c.classList.contains("match-card"))[matchIndex];
     const row = card.children.find((c) => c.classList.contains("score-row"));
     row.children[0].value = String(a);
     row.children[2].value = String(b);

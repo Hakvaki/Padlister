@@ -76,14 +76,18 @@ for (const id of [
   "host-panel", "qr-img", "join-code", "join-url", "host-continue-btn", "invite-btn",
   "gate-panel", "gate-form", "gate-code", "gate-error", "gate-scoreboard-btn",
   "history-btn", "history-panel", "history-ranking", "history-list", "history-back-btn",
+  "name-inputs", "add-player-btn", "courts-select", "singles-select",
 ]) {
   elements[id] = new FakeElement("div");
 }
 
 const formInputs = {};
-for (const name of ["player0", "player1", "player2", "player3"]) {
+for (const name of ["player0", "player1", "player2", "player3", "courts", "singles"]) {
   formInputs[name] = new FakeElement("input");
+  formInputs[name].name = name;
 }
+formInputs["courts"].value = "1";
+formInputs["singles"].value = "0";
 elements["setup-form"].elements = formInputs;
 elements["setup-form"].reset = () => {
   for (const input of Object.values(formInputs)) input.value = "";
@@ -110,11 +114,13 @@ function submitNames(names) {
   names.forEach((n, i) => {
     formInputs[`player${i}`].value = n;
   });
+  formInputs["courts"].value = "1";
+  formInputs["singles"].value = "0";
   elements["setup-form"].dispatch("submit", { preventDefault() {} });
 }
 
 function saveScore(matchIndex, a, b) {
-  const card = elements["matches-list"].children[matchIndex];
+  const card = elements["matches-list"].children.filter((c) => c.classList.contains("match-card"))[matchIndex];
   const row = card.children.find((c) => c.classList.contains("score-row"));
   row.children[0].value = String(a);
   row.children[2].value = String(b);
@@ -130,7 +136,7 @@ assert.equal(elements["join-code"].textContent.length, 6, "6-character join code
 elements["host-continue-btn"].click();
 assert.ok(elements["setup-panel"].classList.contains("hidden"), "setup hidden after start");
 assert.ok(!elements["tournament-panel"].classList.contains("hidden"), "tournament visible after start");
-assert.equal(elements["matches-list"].children.length, 3, "three rounds rendered");
+assert.equal(elements["matches-list"].children.filter((c) => c.classList.contains("match-card")).length, 3, "three rounds rendered");
 assert.equal(elements["players-bar"].children.length, 4, "four player chips");
 assert.equal(
   elements["tournament-status"].textContent,
@@ -161,7 +167,7 @@ const saved = JSON.parse(storage.get("padelAmericano4.v1"));
 assert.deepEqual(saved.players, ["Ana", "Ben", "Cleo", "Dan"]);
 assert.equal(saved.matches[2].score.a, 6);
 
-const thirdCard = elements["matches-list"].children[2];
+const thirdCard = elements["matches-list"].children.filter((c) => c.classList.contains("match-card"))[2];
 assert.ok(thirdCard.classList.contains("played"), "played match marked");
 
 elements["reset-btn"].click();

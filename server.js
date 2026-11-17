@@ -1,7 +1,7 @@
 const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
-const { generateSchedule, createMatch, isValidMode, isValidScore } = require("./logic.js");
+const { generateRound, generateRounds, isValidMode, isValidPlayerCount, isValidCourtCount, isValidSinglesCount, isValidScore, MIN_PLAYERS, MAX_PLAYERS, MAX_COURTS } = require("./logic.js");
 
 const ROOT = __dirname;
 const DATA_FILE = process.env.PADEL_DATA_FILE || path.join(ROOT, "data", "tournament.json");
@@ -20,9 +20,11 @@ function loadState() {
   try {
     const raw = fs.readFileSync(DATA_FILE, "utf8");
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed.players) || parsed.players.length !== 4) return null;
+    if (!Array.isArray(parsed.players) || !isValidPlayerCount(parsed.players.length)) return null;
     if (!Array.isArray(parsed.matches)) return null;
     if (parsed.mode !== undefined && !isValidMode(parsed.mode)) return null;
+    if (parsed.courts !== undefined && !isValidCourtCount(parsed.courts)) return null;
+    if (parsed.singles !== undefined && !isValidSinglesCount(parsed.singles, parsed.courts || 1)) return null;
     return parsed;
   } catch {
     return null;
@@ -45,14 +47,14 @@ function clearState() {
 }
 
 function validatePlayers(players) {
-  if (!Array.isArray(players) || players.length !== 4) {
-    return "Exactly four player names are required.";
+  if (!Array.isArray(players) || !isValidPlayerCount(players.length)) {
+    return `Between ${MIN_PLAYERS} and ${MAX_PLAYERS} player names are required.`;
   }
   if (players.some((p) => typeof p !== "string" || p.trim().length === 0)) {
     return "All four player names are required.";
   }
   const unique = new Set(players.map((p) => p.trim().toLowerCase()));
-  if (unique.size !== 4) return "Player names must be unique.";
+  if (unique.size !== players.length) return "Player names must be unique.";
   return null;
 }
 
@@ -134,13 +136,23 @@ function createApp() {
       if (hostCodeHashEnv && body.hostCodeHash !== hostCodeHashEnv) {
         return sendJson(res, 403, { error: "Only the host can start a tournament." });
       }
+      const courts = body.courts === undefined ? 1 : Number(body.courts);
+      if (!isValidCourtCount(courts)) {
+        return sendJson(res, 400, { error: `courts must be an integer between 1 and ${MAX_COURTS}.` });
+      }
+      const singles = body.singles === undefined ? 0 : Number(body.singles);
+      if (!isValidSinglesCount(singles, courts)) {
+        return sendJson(res, 400, { error: `singles must be an integer between 0 and courts (${courts}).` });
+      }
       const codeHash = typeof body.codeHash === "string" && body.codeHash.length <= 128 ? body.codeHash : null;
       const state = {
         players,
         mode,
+        courts,
+        singles,
         finished: false,
         codeHash,
-        matches: mode === "endless" ? [createMatch(0)] : generateSchedule(4),
+        matches: mode === "endless" ? generateRound(players.length, 0, courts, singles).matches : generateRounds(players.length, courts, 3, singles),
       };
       saveState(state);
       return sendJson(res, 200, state);
@@ -153,7 +165,9 @@ function createApp() {
         return sendJson(res, 400, { error: "Rounds can only be added in endless mode." });
       }
       if (state.finished) return sendJson(res, 400, { error: "The game is already finished." });
-      state.matches.push(createMatch(state.matches.length));
+      const courts = state.courts || 1;
+      const nextRound = state.matches.length ? Math.max(...state.matches.map((m) => m.round)) : 0;
+      state.matches.push(...generateRound(state.players.length, nextRound, courts, state.singles || 0).matches);
       saveState(state);
       return sendJson(res, 200, state);
     }

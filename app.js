@@ -37,6 +37,10 @@ const historyPanel = document.getElementById("history-panel");
 const historyRanking = document.getElementById("history-ranking");
 const historyList = document.getElementById("history-list");
 const historyBackBtn = document.getElementById("history-back-btn");
+const nameInputs = document.getElementById("name-inputs");
+const addPlayerBtn = document.getElementById("add-player-btn");
+const courtsSelect = document.getElementById("courts-select");
+const singlesSelect = document.getElementById("singles-select");
 
 let state = null;
 let pollTimer = null;
@@ -117,7 +121,7 @@ function isValidState(parsed) {
     parsed !== null &&
     typeof parsed === "object" &&
     Array.isArray(parsed.players) &&
-    parsed.players.length === 4 &&
+    isValidPlayerCount(parsed.players.length) &&
     Array.isArray(parsed.matches)
   );
 }
@@ -130,6 +134,8 @@ function normalizeState(parsed) {
     finished: Boolean(parsed.finished),
     codeHash: typeof parsed.codeHash === "string" ? parsed.codeHash : null,
     resultArchived: Boolean(parsed.resultArchived),
+    courts: isValidCourtCount(parsed.courts) ? parsed.courts : 1,
+    singles: isValidSinglesCount(parsed.singles, isValidCourtCount(parsed.courts) ? parsed.courts : 1) ? parsed.singles : 0,
     matches: parsed.matches.map((m) => ({ ...m, score: m.score || null })),
   };
 }
@@ -231,7 +237,7 @@ async function publish(action, payload) {
     return api("api/tournament", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ players: payload.players, mode: payload.mode, codeHash: payload.codeHash || null, hostCodeHash: payload.hostCodeHash || null }),
+      body: JSON.stringify({ players: payload.players, mode: payload.mode, courts: payload.courts || 1, singles: payload.singles || 0, codeHash: payload.codeHash || null, hostCodeHash: payload.hostCodeHash || null }),
     });
   }
   if (action === "round") {
@@ -283,7 +289,7 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
-function startTournament(players, mode, hostCodeHash) {
+function startTournament(players, mode, courts, singles, hostCodeHash) {
   const code = generateJoinCode();
   localStorage.setItem(UNLOCK_KEY, code);
   unlocked = true;
@@ -291,9 +297,11 @@ function startTournament(players, mode, hostCodeHash) {
   state = {
     players,
     mode,
+    courts,
+    singles,
     finished: false,
     codeHash: null,
-    matches: mode === "endless" ? [createMatch(0)] : generateSchedule(4),
+    matches: mode === "endless" ? generateRound(players.length, 0, courts, singles).matches : generateRounds(players.length, courts, 3, singles),
   };
   saveState();
   render();
@@ -303,7 +311,7 @@ function startTournament(players, mode, hostCodeHash) {
     saveState();
     render();
     if (isBrowser()) {
-      publish("tournament", { players, mode, codeHash, hostCodeHash }).catch((err) => {
+      publish("tournament", { players, mode, courts, singles, codeHash, hostCodeHash }).catch((err) => {
         if (err && err.status === 409) syncShared();
       });
     }
@@ -418,12 +426,13 @@ function renderHost() {
 function statusText(standings) {
   const played = state.matches.filter((m) => isValidScore(m.score)).length;
   if (state.mode === "endless") {
+    const round = state.matches.length ? Math.max(...state.matches.map((m) => m.round)) : 0;
     if (state.finished) return `Game over — ${standings[0].name} wins!`;
-    return `Round ${state.matches.length} · ${played} of ${state.matches.length} matches played`;
+    return `Round ${round} · ${played} of ${state.matches.length} matches played`;
   }
   return isTournamentComplete(state.matches)
     ? `Tournament complete — ${standings[0].name} wins!`
-    : `${played} of 3 matches played`;
+    : `${played} of ${state.matches.length} matches played`;
 }
 
 function renderHistory() {
@@ -501,8 +510,8 @@ function renderHistory() {
 function renderScoreboard() {
   const standings = computeStandings(state.players, state.matches);
   scoreboardRound.textContent = state.mode === "endless"
-    ? (state.finished ? "Game over" : `Round ${state.matches.length}`)
-    : `Classic · ${state.matches.filter((m) => isValidScore(m.score)).length} of 3 played`;
+    ? (state.finished ? "Game over" : `Round ${state.matches.length ? Math.max(...state.matches.map((m) => m.round)) : 0}`)
+    : `Classic · ${state.matches.filter((m) => isValidScore(m.score)).length} of ${state.matches.length} played`;
 
   const tbody = scoreboardTable.querySelector("tbody");
   tbody.innerHTML = "";
@@ -547,10 +556,26 @@ function renderStandings() {
   tournamentStatus.textContent = statusText(standings);
 }
 
+function restingFor(round) {
+  return generateRound(state.players.length, round - 1, state.courts || 1, state.singles || 0).resting;
+}
+
 function renderMatches() {
   matchesList.innerHTML = "";
+  const byRound = new Map();
   for (const match of state.matches) {
-    matchesList.appendChild(buildMatchCard(match));
+    if (!byRound.has(match.round)) byRound.set(match.round, []);
+    byRound.get(match.round).push(match);
+  }
+  for (const [round, roundMatches] of byRound) {
+    const header = document.createElement("h3");
+    header.className = "round-header";
+    const resting = restingFor(round);
+    header.textContent = `Round ${round}` + (resting.length ? ` — resting: ${resting.map((i) => state.players[i]).join(", ")}` : "");
+    matchesList.appendChild(header);
+    for (const match of roundMatches) {
+      matchesList.appendChild(buildMatchCard(match));
+    }
   }
 }
 
@@ -560,7 +585,7 @@ function buildMatchCard(match) {
 
   const title = document.createElement("div");
   title.className = "match-title";
-  title.textContent = `Round ${match.round}`;
+  title.textContent = `Round ${match.round} · Court ${match.court || 1}${match.singles ? " · 1v1" : ""}`;
   card.appendChild(title);
 
   const teams = document.createElement("div");
@@ -633,21 +658,83 @@ function buildMatchCard(match) {
   return card;
 }
 
+function formElements(form) {
+  if (!form.elements) return [];
+  if (typeof form.elements.length === "number") return Array.from(form.elements);
+  return Object.values(form.elements);
+}
+
+function readPlayers() {
+  return formElements(setupForm)
+    .filter((el) => el && typeof el.name === "string" && /^player\d+$/.test(el.name))
+    .sort((a, b) => Number(a.name.slice(6)) - Number(b.name.slice(6)))
+    .map((el) => el.value.trim());
+}
+
+function updateCourtsDefault() {
+  const rows = nameInputs.querySelectorAll(".player-row");
+  courtsSelect.value = String(Math.min(MAX_COURTS, Math.max(1, Math.ceil(rows.length / 4))));
+}
+
+addPlayerBtn.addEventListener("click", () => {
+  const rows = nameInputs.querySelectorAll(".player-row");
+  if (rows.length >= MAX_PLAYERS) return;
+  const row = document.createElement("div");
+  row.className = "player-row";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.name = `player${rows.length}`;
+  input.maxLength = 20;
+  input.placeholder = `Player ${rows.length + 1}`;
+  input.required = true;
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "btn small remove-player-btn";
+  remove.setAttribute("aria-label", "Remove player");
+  remove.textContent = "×";
+  row.append(input, remove);
+  nameInputs.appendChild(row);
+  updateCourtsDefault();
+});
+
+nameInputs.addEventListener("click", (event) => {
+  if (!event.target.classList || !event.target.classList.contains("remove-player-btn")) return;
+  const rows = nameInputs.querySelectorAll(".player-row");
+  if (rows.length > MIN_PLAYERS) event.target.closest(".player-row").remove();
+  updateCourtsDefault();
+});
+
 setupForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const players = [0, 1, 2, 3].map((i) => {
-    const value = setupForm.elements[`player${i}`].value.trim();
-    return value;
-  });
+  const players = readPlayers();
 
+  if (!isValidPlayerCount(players.length)) {
+    setupError.textContent = `Enter between ${MIN_PLAYERS} and ${MAX_PLAYERS} player names.`;
+    setupError.classList.remove("hidden");
+    return;
+  }
   if (players.some((p) => p.length === 0)) {
-    setupError.textContent = "All four player names are required.";
+    setupError.textContent = "All player names are required.";
     setupError.classList.remove("hidden");
     return;
   }
   const unique = new Set(players.map((p) => p.toLowerCase()));
-  if (unique.size !== 4) {
+  if (unique.size !== players.length) {
     setupError.textContent = "Player names must be unique.";
+    setupError.classList.remove("hidden");
+    return;
+  }
+  const courtsEl = setupForm.elements["courts"] || courtsSelect;
+  const courts = Number(courtsEl ? courtsEl.value : 1);
+  if (!isValidCourtCount(courts)) {
+    setupError.textContent = `Choose between 1 and ${MAX_COURTS} courts.`;
+    setupError.classList.remove("hidden");
+    return;
+  }
+  const singlesEl = setupForm.elements["singles"] || singlesSelect;
+  const singles = Number(singlesEl ? singlesEl.value : 0);
+  if (!isValidSinglesCount(singles, courts)) {
+    setupError.textContent = `1v1 courts must be between 0 and the number of courts (${courts}).`;
     setupError.classList.remove("hidden");
     return;
   }
@@ -668,7 +755,7 @@ setupForm.addEventListener("submit", async (event) => {
   setupError.classList.add("hidden");
   const modeRadio = setupForm.elements["mode"];
   const mode = modeRadio && modeRadio.value === "endless" ? "endless" : "classic";
-  startTournament(players, mode, hostCodeHash);
+  startTournament(players, mode, courts, singles, hostCodeHash);
 });
 
 scoreboardBtn.addEventListener("click", () => {
@@ -723,7 +810,8 @@ backBtn.addEventListener("click", () => {
 
 addRoundBtn.addEventListener("click", () => {
   if (!state || state.mode !== "endless" || state.finished) return;
-  state.matches.push(createMatch(state.matches.length));
+  const nextRound = state.matches.length ? Math.max(...state.matches.map((m) => m.round)) : 0;
+  state.matches.push(...generateRound(state.players.length, nextRound, state.courts || 1, state.singles || 0).matches);
   saveState();
   render();
   if (isBrowser()) {

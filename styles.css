@@ -86,7 +86,32 @@ main {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 0.75rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0.6rem;
+}
+
+.player-row {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.player-row input {
+  flex: 1;
+}
+
+.courts-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: var(--court-dark);
+  margin: 0.4rem 0 1rem;
+}
+
+.round-header {
+  color: var(--court-dark);
+  margin: 1.2rem 0 0.5rem;
+  border-bottom: 2px solid var(--court-green);
+  padding-bottom: 0.2rem;
 }
 
 input[type="text"],
